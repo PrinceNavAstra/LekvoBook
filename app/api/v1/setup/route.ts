@@ -1,82 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
     const body = await request.json();
-    const personName = String(body.personName || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const mobile = String(body.mobile || "").trim();
-    const language = ["en", "gu", "hi"].includes(body.language) ? body.language : "en";
     const businessName = String(body.businessName || "").trim();
-    const businessType = String(body.businessType || "").trim();
-    const gstNumber = String(body.gstNumber || "").trim() || null;
-    const address = String(body.address || "").trim() || null;
-    const city = String(body.city || "").trim() || null;
-    const state = String(body.state || "").trim() || null;
-    const pincode = String(body.pincode || "").trim() || null;
+    if (!businessName) return NextResponse.json({ error: "Business name is required." }, { status: 400 });
 
-    if (!personName || !email || !mobile || !businessName) {
-      return NextResponse.json(
-        { error: "Person name, email, mobile and business name are required." },
-        { status: 400 },
-      );
-    }
-
-    let user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          name: personName,
-          email,
-          mobile,
-          preferredLanguage: language,
-        },
-      });
-    } else {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { name: personName, mobile, preferredLanguage: language },
-      });
-    }
-
-    const existingMembership = await prisma.businessUser.findFirst({
-      where: { userId: user.id },
-      include: { business: true },
-    });
-
-    if (existingMembership) {
-      return NextResponse.json({
-        user: { id: user.id, name: user.name, email: user.email, preferredLanguage: user.preferredLanguage },
-        business: existingMembership.business,
-        existing: true,
-      });
-    }
+    const existing = await prisma.businessUser.findFirst({ where: { userId: user.id } });
+    if (existing) return NextResponse.json({ error: "Business setup is already complete." }, { status: 409 });
 
     const business = await prisma.business.create({
       data: {
         name: businessName,
-        phone: mobile,
-        email,
-        businessType,
-        gstNumber,
-        address,
-        city,
-        state,
-        pincode,
+        phone: user.mobile,
+        email: user.email,
+        businessType: String(body.businessType || "").trim() || null,
+        gstNumber: String(body.gstNumber || "").trim() || null,
+        address: String(body.address || "").trim() || null,
+        city: String(body.city || "").trim() || null,
+        state: String(body.state || "").trim() || null,
+        pincode: String(body.pincode || "").trim() || null,
         users: { create: { userId: user.id, role: "OWNER" } },
       },
     });
-
-    return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, preferredLanguage: user.preferredLanguage },
-      business,
-      existing: false,
-    });
+    return NextResponse.json({ ok: true, business });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to complete setup." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to complete setup." }, { status: 500 });
   }
 }
