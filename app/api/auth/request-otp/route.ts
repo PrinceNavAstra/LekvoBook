@@ -31,7 +31,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const channel = body.channel === "mobile" ? "mobile" : "email";
-    const identifier = String(body.identifier || "").trim().toLowerCase();
+    const rawIdentifier = String(body.identifier || "").trim();
+    const identifier = channel === "mobile" ? rawIdentifier.replace(/[\s()-]/g, "") : rawIdentifier.toLowerCase();
     const purpose = ["SIGNUP", "LOGIN", "CHANGE_EMAIL", "CHANGE_MOBILE"].includes(body.purpose) ? body.purpose : "LOGIN";
     if (!identifier) return NextResponse.json({ error: "Email or mobile number is required." }, { status: 400 });
 
