@@ -51,11 +51,15 @@ enum Role {
 }
 
 model User {
-  id           String              @id @default(cuid())
-  email        String              @unique
-  name         String
-  passwordHash String?
-  createdAt    DateTime            @default(now())
+  id                String              @id @default(cuid())
+  email             String              @unique
+  name              String
+  mobile            String?             @unique
+  passwordHash      String?
+  preferredLanguage String              @default("en")
+  emailVerifiedAt   DateTime?
+  mobileVerifiedAt  DateTime?
+  createdAt         DateTime            @default(now())
   businesses   BusinessUser[]
   transactions LedgerTransaction[]
 }
@@ -64,7 +68,13 @@ model Business {
   id           String              @id @default(cuid())
   name         String
   phone        String?
+  email        String?
+  businessType String?
   gstNumber    String?
+  address      String?
+  city         String?
+  state        String?
+  pincode      String?
   createdAt    DateTime            @default(now())
   users        BusinessUser[]
   customers    Customer[]
