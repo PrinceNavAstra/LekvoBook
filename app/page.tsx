@@ -79,6 +79,8 @@ const money = (n: number) => new Intl.NumberFormat("en-IN", {
 }).format(n);
 
 export default function Home() {
+  const [authState, setAuthState] = useState<"loading"|"login"|"app">("loading");
+  const [authUser, setAuthUser] = useState<any>(null);
   const [tab, setTab] = useState("dashboard");
   const [data, setData] = useState<any>(null);
   const [open, setOpen] = useState(false);
@@ -106,11 +108,26 @@ export default function Home() {
   const t = useMemo(() => translations[language], [language]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("lekvo_language") as Language | null;
-    const completed = localStorage.getItem("lekvo_setup_complete");
-    if (stored && translations[stored]) setLanguage(stored);
-    if (completed === "true") setSetup(false);
-    fetch("/api/v1/dashboard").then(r => r.json()).then(setData).catch(() => setData({ offline: true }));
+    fetch("/api/auth/session")
+      .then(async r => {
+        if (!r.ok) { setAuthState("login"); return; }
+        const session = await r.json();
+        setAuthUser(session.user);
+        setPersonName(session.user.name || "");
+        setEmail(session.user.email || "");
+        setMobile(session.user.mobile || "");
+        if (session.user.preferredLanguage && translations[session.user.preferredLanguage as Language]) {
+          setLanguage(session.user.preferredLanguage as Language);
+        }
+        setSetup(!session.business);
+        setSetupStep(2);
+        if (session.business) {
+          setData(null);
+          fetch("/api/v1/dashboard").then(x => x.json()).then(setData);
+        }
+        setAuthState("app");
+      })
+      .catch(() => setAuthState("login"));
   }, []);
 
   useEffect(() => {
@@ -124,8 +141,8 @@ export default function Home() {
 
   const finishSetup = async () => {
     setError("");
-    if (!personName || !email || !mobile || !businessName) {
-      setError("Please complete all required fields.");
+    if (!businessName) {
+      setError("Please enter the business name.");
       return;
     }
     setSaving(true);
@@ -133,11 +150,10 @@ export default function Home() {
       const response = await fetch("/api/v1/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personName, email, mobile, language, businessName, businessType, gstNumber, address, city, state, pincode })
+        body: JSON.stringify({ businessName, businessType, gstNumber, address, city, state, pincode })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to save setup.");
-      localStorage.setItem("lekvo_setup_complete", "true");
       localStorage.setItem("lekvo_language", language);
       setSetup(false);
       setData(null);
@@ -159,16 +175,24 @@ export default function Home() {
     setOpen(false); setName(""); setAmount(""); location.reload();
   };
 
+  if (authState === "loading") {
+    return <div className="authPage"><div className="authCard"><div className="setupBrand"><div className="logo">L</div><strong>Lekvo <span>Book</span></strong></div><p>Loading secure workspace...</p></div></div>;
+  }
+
+  if (authState !== "app") {
+    return <AuthGate language={language} setLanguage={selectLanguage} onLogin={() => location.reload()} />;
+  }
+
   if (setup) {
     return <div className="setupPage">
       <div className="setupCard">
         <div className="setupBrand"><div className="logo">L</div><strong>Lekvo <span>Book</span></strong></div>
-        <div className="setupProgress"><span className={setupStep >= 1 ? "on" : ""}/><span className={setupStep >= 2 ? "on" : ""}/></div>
-        <p className="eyebrow">Welcome</p>
+        <div className="setupProgress"><span className="on"/><span className="on"/></div>
+        <p className="eyebrow">Business setup</p>
         <h1>{t.firstSetup}</h1>
         <p className="setupHelp">{t.setupHelp}</p>
 
-        {setupStep === 1 ? <section className="setupSection">
+        {false ? <section className="setupSection">
           <div className="setupTitle"><UserCircle2/><div><h3>{t.personDetails}</h3><p>Account owner information</p></div></div>
           <label>{t.fullName} <em>*</em><input value={personName} onChange={e => setPersonName(e.target.value)} placeholder={t.fullName}/></label>
           <label>{t.email} <em>*</em><input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="name@example.com"/></label>
@@ -184,9 +208,9 @@ export default function Home() {
           <div className="twoCols"><label>{t.city}<input value={city} onChange={e => setCity(e.target.value)} placeholder={t.city}/></label><label>{t.state}<input value={state} onChange={e => setState(e.target.value)} placeholder={t.state}/></label></div>
           <label>{t.pincode}<input value={pincode} onChange={e => setPincode(e.target.value)} placeholder={t.pincode}/></label>
           {error && <div className="formError">{error}</div>}
-          <div className="setupActions"><button onClick={() => setSetupStep(1)}>{t.cancel}</button><button className="primary" disabled={saving} onClick={finishSetup}>{saving ? "Saving..." : t.finish}</button></div>
+          <div className="setupActions"><button className="primary" disabled={saving} onClick={finishSetup}>{saving ? "Saving..." : t.finish}</button></div>
         </section>}
-        {error && setupStep === 1 && <div className="formError">{error}</div>}
+        {error && <div className="formError">{error}</div>}
         <p className="setupNote">Email OTP and mobile OTP verification will be required for account activation.</p>
       </div>
     </div>;
@@ -213,7 +237,7 @@ export default function Home() {
           {data?.transactions?.length ? data.transactions.map((x:any) => <div className="row" key={x.id}><div className="rowIcon">{x.direction === "CREDIT" ? <ArrowUpRight/> : <ArrowDownLeft/>}</div><div className="grow"><b>{x.customer?.name || x.supplier?.name || "Account"}</b><span>{x.type} · {new Date(x.transactionDate).toLocaleDateString("en-IN")}</span></div><strong className={x.direction === "CREDIT" ? "credit" : "debit"}>{x.direction === "CREDIT" ? "+" : "-"}{money(Number(x.amount))}</strong></div>) : <div className="empty">{t.noTransactions}</div>}
         </section><section className="panel"><div className="panelHead"><div><h3>{t.quickActions}</h3><p>{t.commonTasks}</p></div></div><div className="actions">
           <button onClick={() => setOpen(true)}><Plus/><b>{t.recordCredit}</b><span>{t.creditHelp}</span></button><button onClick={() => setOpen(true)}><WalletCards/><b>{t.receivePayment}</b><span>{t.paymentHelp}</span></button><button><Receipt/><b>{t.createInvoice}</b><span>{t.invoiceHelp}</span></button>
-        </div></section></div></> : <section className="panel placeholder"><h3>{t[tab]}</h3><p>This module is scaffolded in the Lekvo Book architecture and connects to the same cloud backend.</p><button className="primary" onClick={() => setOpen(true)}><Plus size={18}/>{t.addTransaction}</button></section>}
+        </div></section></div></> : tab === "settings" ? <SettingsPanel language={language} /> : <section className="panel placeholder"><h3>{t[tab]}</h3><p>This module is scaffolded in the Lekvo Book architecture and connects to the same cloud backend.</p><button className="primary" onClick={() => setOpen(true)}><Plus size={18}/>{t.addTransaction}</button></section>}
 
       {profileOpen && <div className="modalBack"><div className="modal"><p className="eyebrow">{t.profile}</p><h2>{t.language}</h2><div className="profileLanguages"><button className={language==="en"?"selected":""} onClick={() => selectLanguage("en")}>English</button><button className={language==="gu"?"selected":""} onClick={() => selectLanguage("gu")}>ગુજરાતી</button><button className={language==="hi"?"selected":""} onClick={() => selectLanguage("hi")}>हिन्दी</button></div><div className="modalActions"><button onClick={() => setProfileOpen(false)}>{t.cancel}</button><button className="primary" onClick={() => { setProfileOpen(false); location.reload(); }}>{t.save}</button></div></div></div>}
 
@@ -224,4 +248,31 @@ export default function Home() {
 
 function Card({title,value,tone}:{title:string,value:string,tone?:string}) {
   return <div className="stat"><span>{title}</span><strong className={tone || ""}>{value}</strong><small>vs. previous period</small></div>;
+}
+
+
+function AuthGate({language,setLanguage,onLogin}:{language:Language;setLanguage:(v:Language)=>void;onLogin:()=>void}) {
+  const words:any={en:{login:"Sign in",signup:"Create account",name:"Full name",email:"Email address",mobile:"Mobile number",otp:"6-digit OTP",send:"Send OTP",verify:"Verify OTP",switch:"Create an account",back:"Already have an account?",help:"Secure access with one-time password verification."},gu:{login:"લૉગિન",signup:"ખાતું બનાવો",name:"પૂરું નામ",email:"ઇમેઇલ સરનામું",mobile:"મોબાઇલ નંબર",otp:"6 અંકનો OTP",send:"OTP મોકલો",verify:"OTP ચકાસો",switch:"ખાતું બનાવો",back:"પહેલેથી ખાતું છે?",help:"વન-ટાઇમ પાસવર્ડથી સુરક્ષિત ઍક્સેસ."},hi:{login:"लॉगिन",signup:"खाता बनाएँ",name:"पूरा नाम",email:"ईमेल पता",mobile:"मोबाइल नंबर",otp:"6 अंकों का OTP",send:"OTP भेजें",verify:"OTP सत्यापित करें",switch:"खाता बनाएँ",back:"पहले से खाता है?",help:"वन-टाइम पासवर्ड से सुरक्षित प्रवेश।"}}[language];
+  const [signup,setSignup]=useState(false),[channel,setChannel]=useState<"email"|"mobile">("email"),[name,setName]=useState(""),[email,setEmail]=useState(""),[mobile,setMobile]=useState(""),[otp,setOtp]=useState(""),[sent,setSent]=useState(false),[error,setError]=useState("");
+  async function send(){setError("");const id=channel==="email"?email:mobile;if(signup&&!name)return setError("Name is required.");if(!id)return setError("Enter your email or mobile number.");const r=await fetch("/api/auth/request-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({identifier:id,channel,purpose:signup?"SIGNUP":"LOGIN"})});const j=await r.json();if(!r.ok)return setError(j.error||"Unable to send OTP.");setSent(true)}
+  async function verify(){const id=channel==="email"?email:mobile;const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({identifier:id,code:otp,channel,purpose:signup?"SIGNUP":"LOGIN",name,language,email,mobile})});const j=await r.json();if(!r.ok)return setError(j.error||"Invalid OTP.");if(signup){const other=channel==="email"?"mobile":"email",value=other==="mobile"?mobile:email;const r2=await fetch("/api/auth/request-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({identifier:value,channel:other,purpose:other==="mobile"?"CHANGE_MOBILE":"CHANGE_EMAIL"})});const j2=await r2.json();if(!r2.ok)return setError(j2.error||"Second contact verification is not configured.");setError("Primary contact verified. Please verify your second contact from the next step.");}onLogin()}
+  return <div className="authPage"><div className="authCard"><div className="setupBrand"><div className="logo">L</div><strong>Lekvo <span>Book</span></strong></div><div className="authTop"><div><p className="eyebrow">Secure accounting workspace</p><h1>{signup?words.signup:words.login}</h1><p>{words.help}</p></div><select value={language} onChange={e=>setLanguage(e.target.value as Language)}><option value="en">English</option><option value="gu">ગુજરાતી</option><option value="hi">हिन्दी</option></select></div><div className="authTabs"><button className={!signup?"active":""} onClick={()=>{setSignup(false);setSent(false);setError("")}}>{words.login}</button><button className={signup?"active":""} onClick={()=>{setSignup(true);setSent(false);setError("")}}>{words.signup}</button></div>{signup&&<label>{words.name}<input value={name} onChange={e=>setName(e.target.value)} /></label>}<div className="channelSwitch"><button className={channel==="email"?"active":""} onClick={()=>setChannel("email")}>Email OTP</button><button className={channel==="mobile"?"active":""} onClick={()=>setChannel("mobile")}>Mobile OTP</button></div><label>{channel==="email"?words.email:words.mobile}<input value={channel==="email"?email:mobile} onChange={e=>channel==="email"?setEmail(e.target.value):setMobile(e.target.value)} /></label>{sent&&<label>{words.otp}<input value={otp} onChange={e=>setOtp(e.target.value)} maxLength={6}/></label>}{error&&<div className="formError">{error}</div>}<button className="primary wide" onClick={sent?verify:send}>{sent?words.verify:words.send}</button></div></div>
+}
+
+function ProfileModal({user,language,setLanguage,close}:{user:any;language:Language;setLanguage:(v:Language)=>void;close:()=>void}) {
+  const [name,setName]=useState(user?.name||""); const [lang,setLang]=useState(user?.preferredLanguage||language); const [field,setField]=useState<"email"|"mobile"|null>(null); const [value,setValue]=useState(""); const [otp,setOtp]=useState(""); const [sent,setSent]=useState(false); const [error,setError]=useState("");
+  async function save(){const r=await fetch("/api/profile",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,preferredLanguage:lang})});const j=await r.json();if(!r.ok)return setError(j.error);setLanguage(lang);close();location.reload()}
+  async function send(){const r=await fetch("/api/auth/change-contact",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({field,value})});const j=await r.json();if(!r.ok)return setError(j.error);const channel=field==="mobile"?"mobile":"email";const x=await fetch("/api/auth/request-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({identifier:value,channel,purpose:field==="mobile"?"CHANGE_MOBILE":"CHANGE_EMAIL"})});const y=await x.json();if(!x.ok)return setError(y.error);setSent(true)}
+  async function verify(){const purpose=field==="mobile"?"CHANGE_MOBILE":"CHANGE_EMAIL";const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({identifier:value,code:otp,purpose})});const j=await r.json();if(!r.ok)return setError(j.error);close();location.reload()}
+  return <div className="modalBack"><div className="modal"><div className="panelHead"><div><p className="eyebrow">Profile</p><h2>Profile details</h2></div><button className="iconBtn" onClick={close}>×</button></div><label>Full name<input value={name} onChange={e=>setName(e.target.value)}/></label><label>Language<select value={lang} onChange={e=>setLang(e.target.value)}><option value="en">English</option><option value="gu">ગુજરાતી</option><option value="hi">हिन्दી</option></select></label><div className="securityCard"><b>Account & security</b><div><span>{user.email}</span><small>{user.emailVerifiedAt?"Verified":"Not verified"}</small><button onClick={()=>{setField("email");setValue("")}}>Change email</button></div><div><span>{user.mobile||"Not added"}</span><small>{user.mobileVerifiedAt?"Verified":"Not verified"}</small><button onClick={()=>{setField("mobile");setValue("")}}>Change mobile</button></div></div>{error&&<div className="formError">{error}</div>}<div className="modalActions"><button onClick={close}>Cancel</button><button className="primary" onClick={save}><Save size={16}/>Save</button></div>{field&&<div className="contactChange"><h3>{field==="email"?"Change email":"Change mobile"}</h3>{!sent?<><input value={value} onChange={e=>setValue(e.target.value)} placeholder={field==="email"?"name@example.com":"+91 98765 43210"}/><button className="primary wide" onClick={send}>Send OTP</button></>:<><input value={otp} onChange={e=>setOtp(e.target.value)} maxLength={6} placeholder="6-digit OTP"/><button className="primary wide" onClick={verify}>Verify OTP</button></>}</div>}</div></div>
+}
+
+function SettingsPanel({language}:{language:Language}) {
+ const [s,setS]=useState<any>({general:{currency:"INR",timezone:"Asia/Kolkata",dateFormat:"DD MMM YYYY"}});
+ const [saving,setSaving]=useState(false),[message,setMessage]=useState("");
+ useEffect(()=>{fetch("/api/settings").then(async r=>{if(r.ok)setS({...s,...(await r.json()).settings})})},[]);
+ const update=(key:string,field:string,value:any)=>setS((x:any)=>({...x,[key]:{...(x[key]||{}),[field]:value}}));
+ async function save(){setSaving(true);const r=await fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(s)});const j=await r.json();setMessage(r.ok?"Settings saved.":j.error||"Unable to save.");setSaving(false)}
+ const channels=[["notification.email","Email"],["notification.sms","SMS"],["notification.whatsapp","WhatsApp"]];
+ return <div className="settingsGrid"><section className="panel"><h3>Normal settings</h3><p>Application-wide defaults</p><label>Currency<select value={s.general?.currency||"INR"} onChange={e=>update("general","currency",e.target.value)}><option>INR</option><option>USD</option><option>EUR</option></select></label><label>Timezone<input value={s.general?.timezone||"Asia/Kolkata"} onChange={e=>update("general","timezone",e.target.value)}/></label><label>Date format<select value={s.general?.dateFormat||"DD MMM YYYY"} onChange={e=>update("general","dateFormat",e.target.value)}><option>DD MMM YYYY</option><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option></select></label></section>{channels.map(([key,title])=><section className="panel" key={key}><h3>{title} settings</h3><p>Configure provider credentials without changing code.</p><label>Enabled<select value={s[key]?.enabled?"true":"false"} onChange={e=>update(key,"enabled",e.target.value==="true")}><option value="false">Disabled</option><option value="true">Enabled</option></select></label><label>Provider<input value={s[key]?.provider||""} onChange={e=>update(key,"provider",e.target.value)}/></label><label>API endpoint<input value={s[key]?.endpoint||""} onChange={e=>update(key,"endpoint",e.target.value)}/></label><label>API token<input type="password" value={s[key]?.token||""} onChange={e=>update(key,"token",e.target.value)}/></label><label>API key<input type="password" value={s[key]?.apiKey||""} onChange={e=>update(key,"apiKey",e.target.value)}/></label><label>API secret<input type="password" value={s[key]?.apiSecret||""} onChange={e=>update(key,"apiSecret",e.target.value)}/></label><label>Sender / From<input value={s[key]?.sender||""} onChange={e=>update(key,"sender",e.target.value)}/></label></section>)}<div className="settingsSave"><button className="primary" onClick={save} disabled={saving}><Save size={16}/>{saving?"Saving...":"Save settings"}</button>{message&&<span className="saveMessage">{message}</span>}</div></div>
 }
