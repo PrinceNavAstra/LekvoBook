@@ -1,32 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
-async function getBusiness() {
-  let business = await prisma.business.findFirst();
-
-  if (!business) {
-    const user = await prisma.user.create({
-      data: { name: "Lekvo Demo Owner", email: "owner@lekvo.local" },
-    });
-
-    business = await prisma.business.create({
-      data: {
-        name: "Astra Trading",
-        phone: "+91 90000 00000",
-        users: { create: { userId: user.id, role: "OWNER" } },
-        customers: {
-          create: { name: "ABC Traders", mobile: "+91 90000 11111" },
-        },
-      },
-    });
-  }
-
-  return business;
+async function getBusiness(userId: string) {
+  const membership = await prisma.businessUser.findFirst({
+    where: { userId },
+    include: { business: true },
+  });
+  return membership?.business ?? null;
 }
 
 export async function GET() {
   try {
-    const business = await getBusiness();
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const business = await getBusiness(user.id);
+    if (!business) return NextResponse.json({ error: "Business setup required." }, { status: 409 });
 
     const transactions = await prisma.ledgerTransaction.findMany({
       where: { businessId: business.id },
