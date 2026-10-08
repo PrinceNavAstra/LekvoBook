@@ -29,12 +29,18 @@ async function sendNotification(channel: string, identifier: string, code: strin
 
 export async function POST(request: Request) {
   try {
+    console.log("[OTP][request] start", { env: process.env.NODE_ENV, hasDatabaseUrl: Boolean(process.env.DATABASE_URL), dbHost: (() => { try { return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null; } catch { return "invalid-url"; } })() });
     const body = await request.json();
     const channel = body.channel === "mobile" ? "mobile" : "email";
     const rawIdentifier = String(body.identifier || "").trim();
     const identifier = channel === "mobile" ? rawIdentifier.replace(/[\s()-]/g, "") : rawIdentifier.toLowerCase();
     const purpose = ["SIGNUP", "LOGIN", "CHANGE_EMAIL", "CHANGE_MOBILE"].includes(body.purpose) ? body.purpose : "LOGIN";
     if (!identifier) return NextResponse.json({ error: "Email or mobile number is required." }, { status: 400 });
+
+    console.log("[OTP][request] normalized", { channel, purpose, identifier, dbHost: (() => { try { return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null; } catch { return "invalid-url"; } })() });
+    const otpTable = await prisma.$queryRaw<Array<{ exists: boolean }>>`SELECT to_regclass('"OtpChallenge"') IS NOT NULL AS exists`;
+    console.log("[OTP][request] OtpChallenge table check", otpTable);
+    if (!otpTable[0]?.exists) return NextResponse.json({ error: "Database is connected, but OtpChallenge table is missing in this database." }, { status: 503 });
 
     const code = randomCode();
     await prisma.otpChallenge.updateMany({
