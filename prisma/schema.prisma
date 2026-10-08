@@ -1,3 +1,6 @@
+// LekvoBook database schema
+// Multi-tenant ledger and bookkeeping foundation
+
 generator client {
   provider = "prisma-client-js"
 }
