@@ -5,7 +5,9 @@ import { createSession, getCurrentUser, hashOtp } from "@/lib/auth";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const identifier = String(body.identifier || "").trim().toLowerCase();
+    const rawIdentifier = String(body.identifier || "").trim();
+    const channel = body.channel === "mobile" ? "mobile" : "email";
+    const identifier = channel === "mobile" ? rawIdentifier.replace(/[\s()-]/g, "") : rawIdentifier.toLowerCase();
     const code = String(body.code || "").trim();
     const purpose = ["SIGNUP", "LOGIN", "CHANGE_EMAIL", "CHANGE_MOBILE"].includes(body.purpose) ? body.purpose : "LOGIN";
     if (!identifier || !/^\d{6}$/.test(code)) return NextResponse.json({ error: "Enter the 6-digit OTP." }, { status: 400 });
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     let user = await prisma.user.findFirst({
-      where: body.channel === "mobile" ? { mobile: identifier } : { email: identifier },
+      where: channel === "mobile" ? { mobile: identifier } : { email: identifier },
     });
     if (purpose === "SIGNUP") {
       if (user) return NextResponse.json({ error: "An account already exists. Please log in." }, { status: 409 });
@@ -44,10 +46,10 @@ export async function POST(request: Request) {
       if (!name) return NextResponse.json({ error: "Name is required for signup." }, { status: 400 });
       user = await prisma.user.create({
         data: {
-          name, email: body.channel === "email" ? identifier : String(body.email || "").trim().toLowerCase(),
-          mobile: body.channel === "mobile" ? identifier : String(body.mobile || "").trim(),
+          name, email: channel === "email" ? identifier : String(body.email || "").trim().toLowerCase(),
+          mobile: channel === "mobile" ? identifier : String(body.mobile || "").trim().replace(/[\s()-]/g, ""),
           preferredLanguage: ["en","gu","hi"].includes(body.language) ? body.language : "en",
-          ...(body.channel === "email" ? { emailVerifiedAt: new Date() } : { mobileVerifiedAt: new Date() }),
+          ...(channel === "email" ? { emailVerifiedAt: new Date() } : { mobileVerifiedAt: new Date() }),
         },
       });
     } else if (!user) {
