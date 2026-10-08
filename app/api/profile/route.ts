@@ -16,5 +16,21 @@ export async function PATCH(request: Request) {
   if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
   if (["en","gu","hi"].includes(body.preferredLanguage)) data.preferredLanguage = body.preferredLanguage;
   const updated = await prisma.user.update({ where:{id:user.id}, data });
-  return NextResponse.json({ user:{id:updated.id,name:updated.name,email:updated.email,mobile:updated.mobile,preferredLanguage:updated.preferredLanguage} });
+  const membership = await prisma.businessUser.findFirst({ where:{userId:user.id} });
+  let business = null;
+  if (membership) {
+    business = await prisma.business.update({
+      where:{id:membership.businessId},
+      data:{
+        name: typeof body.businessName==="string" && body.businessName.trim()?body.businessName.trim():undefined,
+        businessType: typeof body.businessType==="string"?body.businessType.trim():undefined,
+        gstNumber: typeof body.gstNumber==="string"?body.gstNumber.trim():undefined,
+        address: typeof body.address==="string"?body.address.trim():undefined,
+        city: typeof body.city==="string"?body.city.trim():undefined,
+        state: typeof body.state==="string"?body.state.trim():undefined,
+        pincode: typeof body.pincode==="string"?body.pincode.trim():undefined,
+      }
+    });
+  }
+  return NextResponse.json({ user:{id:updated.id,name:updated.name,email:updated.email,mobile:updated.mobile,preferredLanguage:updated.preferredLanguage}, business });
 }
