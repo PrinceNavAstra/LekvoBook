@@ -231,3 +231,5 @@ model NotificationTemplate {
   variables  Json?
   enabled    Boolean @default(true)
 }
+
+// Schema formatting normalized for Prisma CLI validation.
