@@ -197,6 +197,30 @@ model Product {
   lowStockThreshold Decimal  @default(0)
   createdAt         DateTime @default(now())
   business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  movements         InventoryMovement[]
+
+  @@index([businessId])
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+}
+
+// Stock is always opening stock + the sum of movements (positive = in, negative = out).
+model InventoryMovement {
+  id         String       @id @default(cuid())
+  businessId String
+  productId  String
+  type       MovementType
+  quantity   Decimal
+  notes      String?
+  createdAt  DateTime     @default(now())
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, productId])
 }
 
 model Expense {

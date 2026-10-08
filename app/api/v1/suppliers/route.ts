@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fail, getCurrentBusiness, handleError } from "@/lib/business";
-import { customersWithBalance } from "@/lib/balances";
+import { suppliersWithBalance } from "@/lib/balances";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const business = await getCurrentBusiness();
-    return NextResponse.json(await customersWithBalance(business.id));
+    return NextResponse.json(await suppliersWithBalance(business.id));
   } catch (e) {
     return handleError(e, "DATABASE_UNAVAILABLE", "We could not reach the database. Try again in a moment.", 503);
   }
@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const name = String(body.name ?? "").trim();
-    if (!name) return fail("NAME_REQUIRED", "Enter the customer's name.", 400);
+    if (!name) return fail("NAME_REQUIRED", "Enter the supplier's name.", 400);
 
     const business = await getCurrentBusiness();
-    const customer = await prisma.customer.create({
+    const supplier = await prisma.supplier.create({
       data: {
         businessId: business.id,
         name,
@@ -30,15 +30,14 @@ export async function POST(req: NextRequest) {
         address: body.address || null,
         gstNumber: body.gstNumber || null,
         openingBalance: Number(body.openingBalance || 0),
-        creditLimit: Number(body.creditLimit || 0),
         notes: body.notes || null,
       },
     });
     await prisma.auditLog.create({
-      data: { businessId: business.id, action: "CUSTOMER_CREATED", resource: "Customer", resourceId: customer.id },
+      data: { businessId: business.id, action: "SUPPLIER_CREATED", resource: "Supplier", resourceId: supplier.id },
     });
-    return NextResponse.json(customer, { status: 201 });
+    return NextResponse.json(supplier, { status: 201 });
   } catch (e) {
-    return handleError(e, "CUSTOMER_CREATE_FAILED", "The customer could not be saved. Try again.", 500);
+    return handleError(e, "SUPPLIER_CREATE_FAILED", "The supplier could not be saved. Try again.", 500);
   }
 }
