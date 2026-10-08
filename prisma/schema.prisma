@@ -62,6 +62,8 @@ model User {
   createdAt         DateTime            @default(now())
   businesses   BusinessUser[]
   transactions LedgerTransaction[]
+  sessions     AuthSession[]
+  appSettings  ApplicationSetting[]
 }
 
 model Business {
@@ -218,6 +220,49 @@ model AuditLog {
   resourceId String?
   createdAt  DateTime @default(now())
   metadata   Json?
+}
+
+
+enum OtpPurpose {
+  SIGNUP
+  LOGIN
+  CHANGE_EMAIL
+  CHANGE_MOBILE
+}
+
+model OtpChallenge {
+  id           String     @id @default(cuid())
+  identifier   String
+  channel      String
+  purpose      OtpPurpose
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int        @default(0)
+  verifiedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([identifier, purpose, createdAt])
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model ApplicationSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedById String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedBy User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 model NotificationProvider {
