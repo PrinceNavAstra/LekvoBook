@@ -27,8 +27,11 @@ export async function POST(request: Request) {
     if (purpose === "CHANGE_EMAIL" || purpose === "CHANGE_MOBILE") {
       const user = await getCurrentUser();
       if (!user) return NextResponse.json({ error: "Please log in again." }, { status: 401 });
-      const field = purpose === "CHANGE_EMAIL" ? "email" : "mobile";
-      await prisma.user.update({ where: { id: user.id }, data: { [field]: identifier, ...(purpose === "CHANGE_EMAIL" ? { emailVerifiedAt: new Date() } : { mobileVerifiedAt: new Date() }) } });
+      if (purpose === "CHANGE_EMAIL") {
+        await prisma.user.update({ where: { id: user.id }, data: { email: identifier, emailVerifiedAt: new Date() } });
+      } else {
+        await prisma.user.update({ where: { id: user.id }, data: { mobile: identifier, mobileVerifiedAt: new Date() } });
+      }
       return NextResponse.json({ ok: true });
     }
 
