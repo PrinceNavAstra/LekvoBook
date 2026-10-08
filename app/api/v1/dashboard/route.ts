@@ -52,7 +52,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      business: { id: business.id, name: business.name },
+      business,
       receivable,
       payable,
       sales,
