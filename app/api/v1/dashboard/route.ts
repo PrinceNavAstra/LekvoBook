@@ -1,3 +1,82 @@
-import {NextResponse} from "next/server"; import {prisma} from "@/lib/prisma";
-async function context(){let b=await prisma.business.findFirst(); if(!b){const u=await prisma.user.create({data:{name:"Lekvo Demo Owner",email:"owner@lekvo.local"}}); b=await prisma.business.create({data:{name:"Astra Trading",phone:"+91 90000 00000",users:{create:{userId:u.id,role:"OWNER"}},customers:{create:{name:"ABC Traders",mobile:"+91 90000 11111"}}});} return b}
-export async function GET(){try{const b=await context();const tx=await prisma.ledgerTransaction.findMany({where:{businessId:b.id},include:{customer:true,supplier:true},orderBy:{transactionDate:"desc"},take:8});const today=new Date();today.setHours(0,0,0,0);const todays=await prisma.ledgerTransaction.findMany({where:{businessId:b.id,transactionDate:{gte:today}}});let receivable=0,payable=0,sales=0,expense=0;for(const t of tx){const n=Number(t.amount);if(t.direction==="CREDIT")receivable+=n;else payable+=n}for(const t of todays){const n=Number(t.amount);if(t.type==="SALE")sales+=n;if(t.type==="EXPENSE")expense+=n}return NextResponse.json({business:{id:b.id,name:b.name},receivable,payable,sales,expense,transactions:tx})}catch(e){return NextResponse.json({error:"Database unavailable",detail:e instanceof Error?e.message:"Unknown error"},{status:503})}}
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+async function getBusiness() {
+  let business = await prisma.business.findFirst();
+
+  if (!business) {
+    const user = await prisma.user.create({
+      data: { name: "Lekvo Demo Owner", email: "owner@lekvo.local" },
+    });
+
+    business = await prisma.business.create({
+      data: {
+        name: "Astra Trading",
+        phone: "+91 90000 00000",
+        users: { create: { userId: user.id, role: "OWNER" } },
+        customers: {
+          create: { name: "ABC Traders", mobile: "+91 90000 11111" },
+        },
+      },
+    });
+  }
+
+  return business;
+}
+
+export async function GET() {
+  try {
+    const business = await getBusiness();
+
+    const transactions = await prisma.ledgerTransaction.findMany({
+      where: { businessId: business.id },
+      include: { customer: true, supplier: true },
+      orderBy: { transactionDate: "desc" },
+      take: 8,
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todaysTransactions = await prisma.ledgerTransaction.findMany({
+      where: {
+        businessId: business.id,
+        transactionDate: { gte: today },
+      },
+    });
+
+    let receivable = 0;
+    let payable = 0;
+    let sales = 0;
+    let expense = 0;
+
+    for (const transaction of transactions) {
+      const amount = Number(transaction.amount);
+      if (transaction.direction === "CREDIT") receivable += amount;
+      else payable += amount;
+    }
+
+    for (const transaction of todaysTransactions) {
+      const amount = Number(transaction.amount);
+      if (transaction.type === "SALE") sales += amount;
+      if (transaction.type === "EXPENSE") expense += amount;
+    }
+
+    return NextResponse.json({
+      business: { id: business.id, name: business.name },
+      receivable,
+      payable,
+      sales,
+      expense,
+      transactions,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Database unavailable",
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 503 },
+    );
+  }
+}
