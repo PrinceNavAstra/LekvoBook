@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashOtp, randomCode } from "@/lib/auth";
+import { decryptSecret } from "@/lib/secrets";
 
 async function sendNotification(channel: string, identifier: string, code: string, purpose: string) {
   const setting = await prisma.applicationSetting.findUnique({ where: { key: `notification.${channel}` } });
@@ -13,7 +14,7 @@ async function sendNotification(channel: string, identifier: string, code: strin
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
+      ...(config.token ? { Authorization: `Bearer ${decryptSecret(config.token)}` } : {}),
     },
     body: JSON.stringify({
       to: identifier,
