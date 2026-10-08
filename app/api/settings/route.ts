@@ -41,8 +41,8 @@ export async function PUT(request: Request) {
       }
       await prisma.applicationSetting.upsert({
         where:{key},
-        update:{value:body[key],updatedById:access.user.id},
-        create:{key,value:body[key],updatedById:access.user.id},
+        update:{value:incoming,updatedById:access.user.id},
+        create:{key,value:incoming,updatedById:access.user.id},
       });
     }
   }
