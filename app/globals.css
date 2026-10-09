@@ -1533,3 +1533,67 @@ button.row:hover {
     padding: 30px;
   }
 }
+
+
+/* ─── Consistent application-wide theme and interaction states ─── */
+:root {
+  color-scheme: light;
+  --page-bg: #FBFBFA;
+  --card-bg: #FFFFFF;
+  --highlight-bg: #ECF7FE;
+  --brand-teal: #123941;
+  --alert-red: #CD3034;
+}
+
+body,
+.app,
+.auth-page {
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+.card,
+.sheet,
+.auth-card,
+.paper {
+  background-color: var(--surface);
+  border-color: var(--line);
+}
+
+select,
+.select,
+[role="combobox"] {
+  accent-color: var(--brand);
+}
+
+select,
+.select {
+  color: var(--ink);
+  background-color: var(--surface);
+  border-color: var(--line-strong);
+}
+
+select:focus-visible,
+.select:focus-visible,
+.input:focus-visible,
+.textarea:focus-visible,
+button:focus-visible,
+[role="combobox"]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
