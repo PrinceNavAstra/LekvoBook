@@ -1,16 +1,9 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/better-auth";
 import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
-
-function matchesSecret(supplied: string, expected: string): boolean {
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
 
 function copyCookies(source: Headers, destination: Headers) {
   const headersWithGetSetCookie = source as Headers & { getSetCookie?: () => string[] };
@@ -20,19 +13,17 @@ function copyCookies(source: Headers, destination: Headers) {
 
 export async function POST(request: Request) {
   try {
-    const expectedSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
-    if (!expectedSecret) {
-      return NextResponse.json({ error: "First-owner setup is disabled on this deployment." }, { status: 503 });
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+    if (!bootstrapEmail) {
+      return NextResponse.json({ error: "First-owner setup is disabled until the authorized owner email is configured." }, { status: 503 });
     }
 
     const body = await request.json();
-    const suppliedSecret = String(body.bootstrapSecret || "");
-    if (!matchesSecret(suppliedSecret, expectedSecret)) {
-      return NextResponse.json({ error: "The setup key is invalid." }, { status: 403 });
-    }
-
     const name = String(body.name || "").trim();
     const email = String(body.email || "").trim().toLowerCase();
+    if (email !== bootstrapEmail) {
+      return NextResponse.json({ error: "First-owner setup is restricted to the configured owner email." }, { status: 403 });
+    }
     const businessName = String(body.businessName || "").trim();
     const password = String(body.password || "");
 
