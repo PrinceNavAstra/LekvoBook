@@ -446,7 +446,9 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);\n  const [testEmailTo, setTestEmailTo] = useState("");\n  const [testWhatsAppTo, setTestWhatsAppTo] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [testEmailTo, setTestEmailTo] = useState("");
+  const [testWhatsAppTo, setTestWhatsAppTo] = useState("");
   const [deliveries, setDeliveries] = useState<Array<{ id: string; channel: string; recipient: string; status: string; errorCode: string | null; errorMessage: string | null; createdAt: string }>>([]);
 
   useEffect(() => {
