@@ -9,16 +9,16 @@ export async function sendOtpEmail(input: { email: string; otp: string; type: Ot
   }
 
   const setting = await prisma.applicationSetting.findUnique({
-    where: { key: "notification.email" },
+    where: { key: "platform.communication" },
   });
   const config = (setting?.value || {}) as Record<string, unknown>;
-  const provider = String(config.provider || "").trim().toLowerCase();
-  const from = String(config.sender || "").trim();
-  const rawKey = String(config.apiKey || config.token || "");
+  const provider = String(config.emailProvider || "").trim().toLowerCase();
+  const from = String(config.emailFrom || "").trim();
+  const rawKey = String(config.emailApiKey || "");
   const apiKey = rawKey ? decryptSecret(rawKey) : "";
 
-  if (!config.enabled || provider !== "resend" || !from || !apiKey) {
-    throw new Error("Email OTP delivery is not configured. Ask the Owner to configure Resend in Settings → Communications.");
+  if (!config.emailEnabled || provider !== "resend" || !from || !apiKey) {
+    throw new Error("Platform email delivery is not configured. Contact the Super Admin.");
   }
 
   const subject =
@@ -46,6 +46,7 @@ export async function sendOtpEmail(input: { email: string; otp: string; type: Ot
       body: JSON.stringify({
         from,
         to: [input.email],
+        ...(config.emailReplyTo ? { reply_to: String(config.emailReplyTo) } : {}),
         subject,
         text,
         html,
