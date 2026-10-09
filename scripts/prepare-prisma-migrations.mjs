@@ -25,7 +25,7 @@ function runPrisma(args) {
 
 try {
   const [migrationTable] = await prisma.$queryRaw`
-    SELECT to_regclass('public._prisma_migrations') AS name
+    SELECT to_regclass('public._prisma_migrations')::text AS name
   `;
 
   if (migrationTable.name) {
