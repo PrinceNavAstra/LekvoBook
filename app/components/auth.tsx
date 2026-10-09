@@ -596,7 +596,7 @@ export function ProfileSheet({
               <label htmlFor="pf-new">{field === "email" ? "New email address" : "New mobile number"}</label>
               <input id="pf-new" className="input" type={field === "email" ? "email" : "tel"} value={value} onChange={(e) => setValue(e.target.value)} disabled={sent} />
             </div>
-            {sent && (
+            {(sent || (field === "email" && currentEmailCodeSent)) && (
               <div className="field">
                 <label htmlFor="pf-code">{field === "email" ? (sent ? "8-digit code sent to new email" : "8-digit code sent to current email") : "6-digit code"}</label>
                 <input id="pf-code" className="input num otp" inputMode="numeric" maxLength={field === "email" ? 8 : 6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
