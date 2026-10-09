@@ -447,6 +447,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);\n  const [testEmailTo, setTestEmailTo] = useState("");\n  const [testWhatsAppTo, setTestWhatsAppTo] = useState("");
+  const [deliveries, setDeliveries] = useState<Array<{ id: string; channel: string; recipient: string; status: string; errorCode: string | null; errorMessage: string | null; createdAt: string }>>([]);
 
   useEffect(() => {
     api<{ settings: AllSettings }>("/api/settings")
@@ -455,6 +456,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
         setAllowed(true);
       })
       .catch(() => setAllowed(false));
+    api<{ deliveries: typeof deliveries }>("/api/settings/delivery-status").then((r) => setDeliveries(r.deliveries)).catch(() => {});
   }, []);
 
   const update = (key: string, field: string, value: unknown) => setSettings((s) => ({ ...s, [key]: { ...(s[key] ?? {}), [field]: value } }));
@@ -639,6 +641,27 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
               </div>
             );
           })}
+
+        {allowed && (
+          <div style={{ padding: 18, borderTop: "1px solid var(--line)" }}>
+            <div style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Recent delivery status</h3>
+              <p className="row-sub">Latest email and WhatsApp messages sent by this company.</p>
+            </div>
+            {deliveries.length ? <div style={{ display: "grid", gap: 10 }}>
+              {deliveries.map((delivery) => (
+                <div key={delivery.id} className="setting" style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+                  <div className="row-main">
+                    <div className="row-title">{delivery.channel === "whatsapp" ? "WhatsApp" : "Email"} · {delivery.recipient}</div>
+                    <div className="row-sub">{new Date(delivery.createdAt).toLocaleString()} {delivery.errorCode ? `· Error ${delivery.errorCode}` : ""}</div>
+                    {delivery.errorMessage && <div className="row-sub">{delivery.errorMessage}</div>}
+                  </div>
+                  <span className={`badge ${["delivered", "read"].includes(delivery.status) ? "badge-ok" : ""}`}>{delivery.status}</span>
+                </div>
+              ))}
+            </div> : <p className="row-sub">No messages have been sent through the configured providers yet.</p>}
+          </div>
+        )}
 
         {allowed && (
           <div style={{ padding: 18, borderTop: "1px solid var(--line)", display: "grid", gap: 12 }}>
