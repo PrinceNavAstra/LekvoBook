@@ -607,9 +607,15 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                       </div>
                     </div>
                     <div className="field">
-                      <label htmlFor={`${c.key}-e`}>API endpoint</label>
-                      <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" />
+                      <label htmlFor={`${c.key}-e`}>{c.key === "notification.email" || c.key === "notification.sms" ? "API endpoint (managed automatically)" : "API endpoint"}</label>
+                      <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email" || c.key === "notification.sms"} />
                     </div>
+                    {c.key === "notification.email" && (
+                      <span className="hint">Email OTP is sent through Resend's fixed HTTPS API. Set Provider to Resend, From address to a verified sender, and add the Resend API key. Custom URLs are not called.</span>
+                    )}
+                    {c.key === "notification.sms" && (
+                      <span className="hint">Mobile contact verification uses Twilio's fixed HTTPS API. Set Provider to Twilio, Sender to a verified Twilio number, API key to the Account SID, and API secret to the Auth Token. Custom URLs are not called.</span>
+                    )}
                     <div className="field">
                       <label htmlFor={`${c.key}-t`}>API token</label>
                       <input id={`${c.key}-t`} className="input" type="password" autoComplete="off" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} />
