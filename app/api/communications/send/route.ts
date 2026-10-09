@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const to = String(body.to || "").trim();
   const message = String(body.message || "").trim();
   const subject = String(body.subject || "Message from your business").trim();
-  if (!["email", "sms", "whatsapp"].includes(channel) || !to || !message || message.length > 4000) {
+  if (!["email", "whatsapp"].includes(channel) || !to || !message || message.length > 4000) {
     return NextResponse.json({ error: "Provide a supported channel, recipient and message (maximum 4000 characters)." }, { status: 400 });
   }
 
@@ -56,20 +56,6 @@ export async function POST(request: Request) {
         body: JSON.stringify({ messaging_product: "whatsapp", to: recipient, type: "text", text: { body: message, preview_url: false } })
       });
       if (!response.ok) return NextResponse.json({ error: "Meta rejected the message. Outside the customer-service window, use an approved template." }, { status: 502 });
-    } else {
-      if (provider !== "twilio") return NextResponse.json({ error: "Company SMS delivery currently supports Twilio." }, { status: 400 });
-      const sid = config.apiKey ? decryptSecret(String(config.apiKey)) : "";
-      const authToken = config.apiSecret ? decryptSecret(String(config.apiSecret)) : "";
-      const from = String(config.sender || "");
-      if (!sid || !authToken || !from) return NextResponse.json({ error: "Twilio Account SID, Auth Token and sender are required." }, { status: 400 });
-      const params = new URLSearchParams({ To: to, From: from, Body: message });
-      const basic = Buffer.from(`${sid}:${authToken}`).toString("base64");
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
-        headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
-      });
-      if (!response.ok) return NextResponse.json({ error: "Twilio rejected the SMS. Check credentials, sender and destination." }, { status: 502 });
     }
     return NextResponse.json({ ok: true, message: "Message accepted by the provider." });
   } catch {
