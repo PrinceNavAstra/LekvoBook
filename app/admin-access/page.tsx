@@ -6,7 +6,6 @@ type Mode = "setup" | "login";
 
 export default function AdminAccessPage() {
   const [mode, setMode] = useState<Mode>("setup");
-  const [bootstrapSecret, setBootstrapSecret] = useState("");
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
@@ -47,7 +46,7 @@ export default function AdminAccessPage() {
     try {
       const endpoint = mode === "setup" ? "/api/auth/bootstrap" : "/api/auth/password-login";
       const payload = mode === "setup"
-        ? { bootstrapSecret, name, email, businessName, password }
+        ? { name, email, businessName, password }
         : { email, password };
 
       const response = await fetch(endpoint, {
@@ -103,11 +102,6 @@ export default function AdminAccessPage() {
 
         {mode === "setup" && (
           <>
-            <div className="field">
-              <label htmlFor="bootstrap-secret">One-time setup key</label>
-              <input id="bootstrap-secret" className="input" type="password" autoComplete="off" value={bootstrapSecret} onChange={(e) => setBootstrapSecret(e.target.value)} required />
-              <span className="hint">Keep this key private. It is not your account password.</span>
-            </div>
             <div className="field">
               <label htmlFor="admin-name">Your full name</label>
               <input id="admin-name" className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={100} required />
