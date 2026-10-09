@@ -20,11 +20,12 @@ export async function GET(request: Request) {
   return NextResponse.json({ error: "Webhook verification failed." }, { status: 403 });
 }
 
-// Event ingestion is intentionally not used to trigger actions yet. Verify the endpoint
-// and keep event content out of logs until app-secret signature validation is configured.
+// Validate Meta's signature against the raw request body before accepting an event.
 export async function POST(request: Request) {
   const signature = request.headers.get("x-hub-signature-256") || "";
   const rawBody = await request.text();
+  const row = await prisma.applicationSetting.findUnique({ where: { key: "platform.communication" } });
+  const config: any = row?.value || {};
   const appSecret = config.whatsappAppSecret ? decryptSecret(String(config.whatsappAppSecret)) : "";
   if (!appSecret || !signature.startsWith("sha256=")) {
     return NextResponse.json({ error: "Webhook signature validation is not configured." }, { status: 401 });
@@ -35,5 +36,6 @@ export async function POST(request: Request) {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
   }
+  // Event processing is intentionally not enabled yet.
   return NextResponse.json({ received: true });
 }
