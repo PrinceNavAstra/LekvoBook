@@ -108,5 +108,28 @@ export async function POST(request: Request) {
     if (!response.ok) return NextResponse.json({ error: "Meta rejected the credentials or Phone ID. Check token permissions and Graph API version." }, { status: 502 });
     return NextResponse.json({ ok: true, message: "Meta accepted the token and Phone ID lookup." });
   }
+  if (body.action === "test-whatsapp-message") {
+    const phoneId = String(config.whatsappPhoneId || "").trim();
+    const token = config.whatsappToken ? decryptSecret(config.whatsappToken) : "";
+    const version = String(config.whatsappVersion || "v23.0").trim();
+    const to = String(body.to || "").replace(/[^0-9]/g, "");
+    if (!/^\d{8,15}$/.test(to)) return NextResponse.json({ error: "Enter a valid recipient number with country code." }, { status: 400 });
+    if (!phoneId || !token) return NextResponse.json({ error: "Save the WhatsApp Phone ID and access token first." }, { status: 400 });
+    let response: Response;
+    try {
+      response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(phoneId)}/messages`, {
+        method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: { name: "hello_world", language: { code: "en_US" } }
+        })
+      });
+    } catch { return NextResponse.json({ error: "Could not reach Meta Graph API." }, { status: 502 }); }
+    if (!response.ok) return NextResponse.json({ error: "Meta rejected the test message. Check the recipient, token permissions, phone registration and template availability." }, { status: 502 });
+    return NextResponse.json({ ok: true, message: "Meta accepted the WhatsApp test template message." });
+  }
   return NextResponse.json({ error: "Unknown test action." }, { status: 400 });
 }
