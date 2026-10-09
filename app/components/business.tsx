@@ -435,9 +435,11 @@ export function ReportsView({ version }: { version: number }) {
 }
 
 /* ── Settings ─────────────────────────────────────────────── */
-type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string; replyTo?: string; smtpHost?: string; smtpPort?: string | number; smtpSecure?: boolean; smtpUser?: string; wabaId?: string; version?: string; }; 
+type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string; replyTo?: string; smtpHost?: string; smtpPort?: string | number; smtpSecure?: boolean; smtpUser?: string; smtpPassword?: string; wabaId?: string; version?: string; }; 
 type GeneralSettings = { currency?: string; timezone?: string; dateFormat?: string };
 type AllSettings = Record<string, ChannelSettings & GeneralSettings>;
+
+const DEFAULT_PROVIDER_BY_CHANNEL = { "notification.email": "resend", "notification.whatsapp": "meta" } as const;
 
 const CHANNELS = [
   { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, receipts, statements and payment reminders to customers and suppliers", sender: "From address" },
@@ -649,7 +651,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                             </div>
                             <div className="form-row">
                               <div className="field"><label htmlFor="company-smtp-user">SMTP username</label><input id="company-smtp-user" className="input" value={v.smtpUser ?? ""} onChange={(e) => update(c.key, "smtpUser", e.target.value)} /></div>
-                              <div className="field"><label htmlFor="company-smtp-password">SMTP password / app password</label><input id="company-smtp-password" className="input" type="password" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "smtpPassword", e.target.value)} /></div>
+                              <div className="field"><label htmlFor="company-smtp-password">SMTP password / app password</label><input id="company-smtp-password" className="input" type="password" value={v.smtpPassword ?? ""} onChange={(e) => update(c.key, "smtpPassword", e.target.value)} /></div>
                             </div>
                             <label className="check"><input type="checkbox" checked={!!v.smtpSecure || Number(v.smtpPort ?? 587) === 465} onChange={(e) => update(c.key, "smtpSecure", e.target.checked)} /><span>Use secure TLS/SSL</span></label>
                           </>
@@ -660,19 +662,19 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                         <span className="hint">These settings send company invoices, receipts, statements and reminders. Platform sign-in and password-reset emails are managed separately by Super Admin.</span>
                         <div className="form-row" style={{ alignItems: "end" }}>
                           <div className="field"><label htmlFor="company-test-email">Send test email to</label><input id="company-test-email" className="input" type="email" value={testEmailTo} onChange={(e) => setTestEmailTo(e.target.value)} /></div>
-                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ channel: "email", to: testEmailTo }) })}>Send test</button>
+                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-email", to: testEmailTo }) })}>Send test</button>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} /></div>
+                        <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.wabaId ?? ""} onChange={(e) => update(c.key, "wabaId", e.target.value)} /></div>
                         <div className="field"><label htmlFor="company-wa-token">Permanent access token</label><input id="company-wa-token" className="input" type="password" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} /></div>
                         <div className="field"><label htmlFor="company-wa-version">Graph API version</label><select id="company-wa-version" className="select" value={v.version ?? "v26.0"} onChange={(e) => update(c.key, "version", e.target.value)}><option value="v26.0">v26.0</option><option value="v23.0">v23.0</option></select></div>
                         <span className="hint">Use a production token with WhatsApp messaging permissions and the Phone Number ID from Meta. Outside the customer-service window, send an approved template only.</span>
                         <div className="form-row">
                           <div className="field"><label htmlFor="company-test-wa">Test recipient (include country code)</label><input id="company-test-wa" className="input" value={testWhatsAppTo} onChange={(e) => setTestWhatsAppTo(e.target.value)} /></div>
                           <div className="field"><label htmlFor="company-template">Template</label><input id="company-template" className="input" value={testWhatsAppTemplate} onChange={(e) => setTestWhatsAppTemplate(e.target.value)} /></div>
-                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ channel: "whatsapp", to: testWhatsAppTo, template: testWhatsAppTemplate }) })}>Send test</button>
+                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-whatsapp-message", to: testWhatsAppTo, templateName: testWhatsAppTemplate }) })}>Send test</button>
                         </div>
                       </>
                     )}
