@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decryptSecret } from "@/lib/secrets";
+import { deliverEmail } from "@/lib/email-delivery";
 
 export const runtime = "nodejs";
 
@@ -30,32 +31,38 @@ export async function POST(request: Request) {
 
   try {
     if (channel === "email") {
-      if (provider !== "resend") return NextResponse.json({ error: "Company email delivery currently supports Resend API." }, { status: 400 });
-      const apiKey = config.apiKey || config.token ? decryptSecret(String(config.apiKey || config.token)) : "";
-      const from = String(config.sender || "");
-      if (!apiKey || !from) return NextResponse.json({ error: "Company email sender and API key are required." }, { status: 400 });
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [to], subject, text: message })
-      });
-      if (!response.ok) return NextResponse.json({ error: "Email provider rejected the message. Check sender verification and API key." }, { status: 502 });
+      try {
+        await deliverEmail(config, { to, subject, text: message });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Company email delivery failed.";
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
     } else if (channel === "whatsapp") {
       if (!["meta", "whatsapp cloud api", "whatsapp-cloud-api"].includes(provider)) {
         return NextResponse.json({ error: "Company WhatsApp provider must be Meta WhatsApp Cloud API." }, { status: 400 });
       }
       const token = config.token ? decryptSecret(String(config.token)) : "";
       const phoneId = String(config.sender || "").trim();
-      if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp Phone ID and access token are required." }, { status: 400 });
+      if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp Phone Number ID and access token are required." }, { status: 400 });
       const version = String(config.version || "v23.0").trim();
+      if (!/^v\\d+\\.0$/.test(version)) return NextResponse.json({ error: "Invalid Graph API version." }, { status: 400 });
       const recipient = to.replace(/[^0-9]/g, "");
-      if (!/^\d{8,15}$/.test(recipient)) return NextResponse.json({ error: "WhatsApp recipient must include country code." }, { status: 400 });
+      if (!/^\\d{8,15}$/.test(recipient)) return NextResponse.json({ error: "WhatsApp recipient must include country code." }, { status: 400 });
+      const payload = body.templateName
+        ? { messaging_product: "whatsapp", to: recipient, type: "template", template: {
+            name: String(body.templateName).trim().replace(/[^a-zA-Z0-9_]/g, "").slice(0, 100),
+            language: { code: String(body.templateLanguage || "en_US").slice(0, 20) },
+            ...(Array.isArray(body.templateComponents) ? { components: body.templateComponents } : {})
+          } }
+        : { messaging_product: "whatsapp", to: recipient, type: "text", text: { body: message, preview_url: false } };
+      if (payload.type === "template" && !(payload as any).template.name) return NextResponse.json({ error: "Provide a valid approved template name." }, { status: 400 });
       const response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(phoneId)}/messages`, {
         method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ messaging_product: "whatsapp", to: recipient, type: "text", text: { body: message, preview_url: false } })
+        body: JSON.stringify(payload)
       });
       if (!response.ok) return NextResponse.json({ error: "Meta rejected the message. Outside the customer-service window, use an approved template." }, { status: 502 });
+
     }
     return NextResponse.json({ ok: true, message: "Message accepted by the provider." });
   } catch {
