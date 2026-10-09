@@ -30,14 +30,14 @@ export async function sendSmsOtp(input: { mobile: string; otp: string }) {
     const body = new URLSearchParams({
       To: input.mobile,
       From: from,
-      Body: \`Your LekvoBook verification code is \${input.otp}. It expires in 10 minutes. Never share this code.\`,
+      Body: `Your LekvoBook verification code is ${input.otp}. It expires in 10 minutes. Never share this code.`,
     });
-    response = await fetch(\`https://api.twilio.com/2010-04-01/Accounts/\${accountSid}/Messages.json\`, {
+    response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: "POST",
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
       headers: {
-        Authorization: \`Basic \${Buffer.from(\`\${accountSid}:\${authToken}\`).toString("base64")}\`,
+        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body,
