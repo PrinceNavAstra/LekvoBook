@@ -71,8 +71,11 @@ export async function PUT(request: Request) {
     }
     if (!["smtp", "resend"].includes(provider)) return NextResponse.json({ error: "Choose SMTP or Resend as the platform email provider." }, { status: 400 });
   }
-  if (merged.whatsappEnabled && (!merged.whatsappPhoneId || !(merged.whatsappToken || current.whatsappToken))) {
-    return NextResponse.json({ error: "WhatsApp requires a Phone ID and access token before activation." }, { status: 400 });
+  if (merged.whatsappEnabled && (!merged.whatsappPhoneId || !merged.whatsappBusinessId || !(merged.whatsappToken || current.whatsappToken))) {
+    return NextResponse.json({ error: "WhatsApp requires a Phone Number ID, WABA ID and access token before activation." }, { status: 400 });
+  }
+  if (merged.whatsappEnabled && (!(merged.webhookVerifyToken || current.webhookVerifyToken) || !(merged.whatsappAppSecret || current.whatsappAppSecret))) {
+    return NextResponse.json({ error: "Configure the webhook verify token and Meta App Secret before enabling WhatsApp webhook processing." }, { status: 400 });
   }
   await prisma.applicationSetting.upsert({
     where: { key: KEY },
