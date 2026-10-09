@@ -8,7 +8,7 @@ const defaults: Config = {
   emailSmtpHost: "", emailSmtpPort: "587", emailSmtpSecure: false, emailSmtpUser: "", emailSmtpPassword: "",
   whatsappEnabled: false, whatsappAccountName: "", whatsappPhoneId: "", whatsappAppId: "", whatsappBusinessId: "",
   whatsappToken: "", whatsappUrl: "https://graph.facebook.com", whatsappVersion: "v23.0",
-  webhookVerifyToken: "", whatsappDefaultIncoming: false, whatsappDefaultOutgoing: false, whatsappAutoReadReceipt: true
+  webhookVerifyToken: "", whatsappAppSecret: "", whatsappDefaultIncoming: false, whatsappDefaultOutgoing: false, whatsappAutoReadReceipt: true
 };
 export default function SuperAdminCommunicationsPage() {
   const [config, setConfig] = useState<Config>(defaults);
@@ -80,6 +80,7 @@ export default function SuperAdminCommunicationsPage() {
         {input("Access Token", "whatsappToken", "password", MASK)}
         <div className="form-row">{input("Graph API base URL", "whatsappUrl", "url", "https://graph.facebook.com")}{input("Graph API Version", "whatsappVersion", "text", "v23.0")}</div>
         {input("Webhook Verify Token (create a long random value)", "webhookVerifyToken", "password", MASK)}
+        {input("Meta App Secret (used to verify webhook signatures)", "whatsappAppSecret", "password", MASK)}
         {check("Default incoming account", "whatsappDefaultIncoming")}
         {check("Default outgoing account", "whatsappDefaultOutgoing")}
         {check("Allow automatic read receipts where supported", "whatsappAutoReadReceipt")}
