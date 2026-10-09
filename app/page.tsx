@@ -298,33 +298,12 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
               <b>Receive payment</b>
               <span>Money you got back</span>
             </button>
-            <button className="quick" onClick={() => openEntry("SALE")}>
-              <span className="quick-icon ic-ok">
-                <ShoppingCart size={20} />
-              </span>
-              <b>Sale</b>
-              <span>Sold on credit</span>
-            </button>
             <button className="quick" onClick={() => openEntry("PURCHASE", "supplier")}>
               <span className="quick-icon ic-warn">
                 <Truck size={20} />
               </span>
               <b>Purchase</b>
               <span>Bought from a supplier</span>
-            </button>
-            <button className="quick" onClick={() => setSheet({ type: "expense" })}>
-              <span className="quick-icon ic-warn">
-                <WalletCards size={20} />
-              </span>
-              <b>Expense</b>
-              <span>Rent, bills, salary</span>
-            </button>
-            <button className="quick" onClick={() => setSheet({ type: "invoice" })}>
-              <span className="quick-icon ic-ink">
-                <Receipt size={20} />
-              </span>
-              <b>Invoice</b>
-              <span>Bill with GST</span>
             </button>
           </div>
         </Sheet>
