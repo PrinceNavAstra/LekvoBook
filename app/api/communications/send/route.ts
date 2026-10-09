@@ -45,9 +45,9 @@ export async function POST(request: Request) {
       const phoneId = String(config.sender || "").trim();
       if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp Phone Number ID and access token are required." }, { status: 400 });
       const version = String(config.version || "v23.0").trim();
-      if (!/^v\\d+\\.0$/.test(version)) return NextResponse.json({ error: "Invalid Graph API version." }, { status: 400 });
+      if (!/^v\d+\.0$/.test(version)) return NextResponse.json({ error: "Invalid Graph API version." }, { status: 400 });
       const recipient = to.replace(/[^0-9]/g, "");
-      if (!/^\\d{8,15}$/.test(recipient)) return NextResponse.json({ error: "WhatsApp recipient must include country code." }, { status: 400 });
+      if (!/^\d{8,15}$/.test(recipient)) return NextResponse.json({ error: "WhatsApp recipient must include country code." }, { status: 400 });
       const payload = body.templateName
         ? { messaging_product: "whatsapp", to: recipient, type: "template", template: {
             name: String(body.templateName).trim().replace(/[^a-zA-Z0-9_]/g, "").slice(0, 100),
