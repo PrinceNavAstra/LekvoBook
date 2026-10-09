@@ -22,7 +22,7 @@ import { DashboardView } from "./components/dashboard";
 import { EntryForm, ExpenseForm, InvoiceForm, PartyForm, ProductForm, StockForm } from "./components/forms";
 import type { EntryKind, PartyKind } from "./components/forms";
 import { LedgerView, PartiesView, PartyProfile } from "./components/parties";
-import { ExpensesView, InventoryView, InvoicesView, ReportsView, SettingsView } from "./components/business";
+import { ReportsView, SettingsView } from "./components/business";
 import { ListSkeleton, Sheet, ToastProvider } from "./components/ui";
 import { AuthGate, ProfileSheet as AccountSheet, SetupScreen, type SessionBusiness, type SessionUser } from "./components/auth";
 
@@ -240,9 +240,6 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
           {tab === "Ledger" && <LedgerView version={version} onAdd={() => openEntry("CREDIT")} />}
           {tab === "Customers" && <PartiesView kind="customer" version={version} onAdd={addForTab} onOpen={(p) => setSheet({ type: "profile", kind: "customer", id: p.id })} />}
           {tab === "Suppliers" && <PartiesView kind="supplier" version={version} onAdd={addForTab} onOpen={(p) => setSheet({ type: "profile", kind: "supplier", id: p.id })} />}
-          {tab === "Invoices" && <InvoicesView version={version} onAdd={addForTab} />}
-          {tab === "Inventory" && <InventoryView version={version} onAdd={addForTab} onStock={(product) => setSheet({ type: "stock", product })} />}
-          {tab === "Expenses" && <ExpensesView version={version} onAdd={addForTab} />}
           {tab === "Reports" && <ReportsView version={version} />}
           {tab === "Settings" && <SettingsView businessName={businessName} dark={dark} onToggleTheme={toggleTheme} />}
         </main>
