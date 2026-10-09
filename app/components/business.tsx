@@ -8,6 +8,10 @@ import { EXPENSE_CATEGORIES } from "./forms";
 import { Empty, ErrorState, ListSkeleton, StatusBadge, useToast } from "./ui";
 
 const withVersion = (url: string, version: number) => `${url}?v=${version}`;
+const DEFAULT_PROVIDER_BY_CHANNEL = {
+  "notification.email": "resend",
+  "notification.whatsapp": "meta",
+} as const;
 
 /* ── Invoices ─────────────────────────────────────────────── */
 const INVOICE_FILTERS = [
@@ -431,7 +435,7 @@ export function ReportsView({ version }: { version: number }) {
 }
 
 /* ── Settings ─────────────────────────────────────────────── */
-type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string; replyTo?: string; smtpHost?: string; smtpPort?: string; smtpSecure?: boolean; smtpUser?: string; smtpPassword?: string; wabaId?: string; version?: string };
+type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string; replyTo?: string; smtpHost?: string; smtpPort?: string | number; smtpSecure?: boolean; smtpUser?: string; wabaId?: string; version?: string; }; 
 type GeneralSettings = { currency?: string; timezone?: string; dateFormat?: string };
 type AllSettings = Record<string, ChannelSettings & GeneralSettings>;
 
@@ -470,8 +474,14 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
     try {
       const payload = {
         ...settings,
-        "notification.email": { ...(settings["notification.email"] ?? {}), provider: settings["notification.email"]?.provider || "resend" },
-        "notification.whatsapp": { ...(settings["notification.whatsapp"] ?? {}), provider: settings["notification.whatsapp"]?.provider || "meta" }
+        "notification.email": {
+          ...(settings["notification.email"] ?? {}),
+          provider: settings["notification.email"]?.provider || DEFAULT_PROVIDER_BY_CHANNEL["notification.email"],
+        },
+        "notification.whatsapp": {
+          ...(settings["notification.whatsapp"] ?? {}),
+          provider: settings["notification.whatsapp"]?.provider || DEFAULT_PROVIDER_BY_CHANNEL["notification.whatsapp"],
+        },
       };
       await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });
       toast("Settings saved");
@@ -608,39 +618,62 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                     <div className="form-row">
                       <div className="field">
                         <label htmlFor={`${c.key}-p`}>Provider</label>
-                        <select id={`${c.key}-p`} className="select" value={v.provider ?? (c.key === "notification.email" ? "resend" : "meta")} onChange={(e) => update(c.key, "provider", e.target.value)}>
-                          {c.key === "notification.email" ? <><option value="resend">Resend API</option><option value="smtp">SMTP</option></> : <option value="meta">Meta WhatsApp Cloud API</option>}
+                        <select
+                          id={`${c.key}-p`}
+                          className="select"
+                          value={v.provider ?? DEFAULT_PROVIDER_BY_CHANNEL[c.key as keyof typeof DEFAULT_PROVIDER_BY_CHANNEL]}
+                          onChange={(e) => update(c.key, "provider", e.target.value)}
+                        >
+                          {c.key === "notification.email" ? (
+                            <>
+                              <option value="resend">Resend API</option>
+                              <option value="smtp">SMTP</option>
+                            </>
+                          ) : (
+                            <option value="meta">Meta WhatsApp Cloud API</option>
+                          )}
                         </select>
                       </div>
                       <div className="field">
                         <label htmlFor={`${c.key}-s`}>{c.sender}</label>
-                        <input id={`${c.key}-s`} className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} placeholder={c.key === "notification.email" ? "LekvoBook <accounts@yourcompany.com>" : "Meta Phone Number ID"} />
+                        <input id={`${c.key}-s`} className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} placeholder={c.key === "notification.email" ? "noreply@yourcompany.com" : "1234567890"} />
                       </div>
                     </div>
                     {c.key === "notification.email" ? (
                       <>
-                        {v.provider === "smtp" ? <>
-                          <div className="form-row">
-                            <div className="field"><label htmlFor="company-smtp-host">SMTP host</label><input id="company-smtp-host" className="input" value={v.smtpHost ?? ""} onChange={(e) => update(c.key, "smtpHost", e.target.value)} placeholder="smtp.example.com" /></div>
-                            <div className="field"><label htmlFor="company-smtp-port">SMTP port</label><input id="company-smtp-port" className="input" type="number" min="1" max="65535" value={v.smtpPort ?? "587"} onChange={(e) => update(c.key, "smtpPort", e.target.value)} /></div>
-                          </div>
-                          <div className="form-row">
-                            <div className="field"><label htmlFor="company-smtp-user">SMTP username</label><input id="company-smtp-user" className="input" value={v.smtpUser ?? ""} onChange={(e) => update(c.key, "smtpUser", e.target.value)} autoComplete="off" /></div>
-                            <div className="field"><label htmlFor="company-smtp-password">SMTP password / app password</label><input id="company-smtp-password" className="input" type="password" value={v.smtpPassword ?? ""} onChange={(e) => update(c.key, "smtpPassword", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>
-                          </div>
-                          <label className="check"><input type="checkbox" checked={!!v.smtpSecure || v.smtpPort === "465"} onChange={(e) => update(c.key, "smtpSecure", e.target.checked)} /><span>Use implicit TLS (usually port 465)</span></label>
-                        </> : <div className="field"><label htmlFor="company-resend-key">Resend API key</label><input id="company-resend-key" className="input" type="password" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "apiKey", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>}
-                        <div className="field"><label htmlFor="company-email-reply">Reply-to address (optional)</label><input id="company-email-reply" className="input" type="email" value={v.replyTo ?? ""} onChange={(e) => update(c.key, "replyTo", e.target.value)} placeholder="support@yourcompany.com" /></div>
+                        {v.provider === "smtp" ? (
+                          <>
+                            <div className="form-row">
+                              <div className="field"><label htmlFor="company-smtp-host">SMTP host</label><input id="company-smtp-host" className="input" value={v.smtpHost ?? ""} onChange={(e) => update(c.key, "smtpHost", e.target.value)} /></div>
+                              <div className="field"><label htmlFor="company-smtp-port">SMTP port</label><input id="company-smtp-port" className="input" type="number" min="1" max="65535" value={v.smtpPort ?? 587} onChange={(e) => update(c.key, "smtpPort", e.target.value)} /></div>
+                            </div>
+                            <div className="form-row">
+                              <div className="field"><label htmlFor="company-smtp-user">SMTP username</label><input id="company-smtp-user" className="input" value={v.smtpUser ?? ""} onChange={(e) => update(c.key, "smtpUser", e.target.value)} /></div>
+                              <div className="field"><label htmlFor="company-smtp-password">SMTP password / app password</label><input id="company-smtp-password" className="input" type="password" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "smtpPassword", e.target.value)} /></div>
+                            </div>
+                            <label className="check"><input type="checkbox" checked={!!v.smtpSecure || Number(v.smtpPort ?? 587) === 465} onChange={(e) => update(c.key, "smtpSecure", e.target.checked)} /><span>Use secure TLS/SSL</span></label>
+                          </>
+                        ) : (
+                          <div className="field"><label htmlFor="company-resend-key">Resend API key</label><input id="company-resend-key" className="input" type="password" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "apiKey", e.target.value)} /></div>
+                        )}
+                        <div className="field"><label htmlFor="company-email-reply">Reply-to address (optional)</label><input id="company-email-reply" className="input" type="email" value={v.replyTo ?? ""} onChange={(e) => update(c.key, "replyTo", e.target.value)} /></div>
                         <span className="hint">These settings send company invoices, receipts, statements and reminders. Platform sign-in and password-reset emails are managed separately by Super Admin.</span>
-                        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label htmlFor="company-test-email">Send test email to</label><input id="company-test-email" className="input" type="email" value={testEmailTo} onChange={(e) => setTestEmailTo(e.target.value)} placeholder="you@example.com" /></div><button className="btn btn-sm" disabled={busy || !testEmailTo} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-email", to: testEmailTo }) }); toast("Test email accepted by provider"); } catch (e) { setError(e instanceof Error ? e.message : "Email test failed."); } }}>Test email</button></div>
+                        <div className="form-row" style={{ alignItems: "end" }}>
+                          <div className="field"><label htmlFor="company-test-email">Send test email to</label><input id="company-test-email" className="input" type="email" value={testEmailTo} onChange={(e) => setTestEmailTo(e.target.value)} /></div>
+                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ channel: "email", to: testEmailTo }) })}>Send test</button>
+                        </div>
                       </>
                     ) : (
                       <>
-                        <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.wabaId ?? ""} onChange={(e) => update(c.key, "wabaId", e.target.value)} placeholder="Meta WhatsApp Business Account ID" /></div>
-                        <div className="field"><label htmlFor="company-wa-token">Permanent access token</label><input id="company-wa-token" className="input" type="password" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>
-                        <div className="field"><label htmlFor="company-wa-version">Graph API version</label><select id="company-wa-version" className="select" value={v.version ?? "v26.0"} onChange={(e) => update(c.key, "version", e.target.value)}>{["v26.0", "v25.0", "v24.0"].map((version) => <option key={version} value={version}>{version}</option>)}</select></div>
-                        <span className="hint">Use a production token with WhatsApp messaging permissions and the Phone Number ID from Meta. Outside the customer-service window, send an approved template. Credentials are private to this company.</span>
-                        <div className="form-row"><div className="field"><label htmlFor="company-test-wa">Test recipient (include country code)</label><input id="company-test-wa" className="input" value={testWhatsAppTo} onChange={(e) => setTestWhatsAppTo(e.target.value)} placeholder="+91..." /></div><div className="field"><label htmlFor="company-test-template">Approved template name</label><input id="company-test-template" className="input" value={testWhatsAppTemplate} onChange={(e) => setTestWhatsAppTemplate(e.target.value)} placeholder="hello_world" /></div></div><div className="form-row"><button className="btn btn-sm" disabled={busy} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-whatsapp" }) }); toast("Meta credentials verified"); } catch (e) { setError(e instanceof Error ? e.message : "WhatsApp test failed."); } }}>Test connection</button><button className="btn btn-sm" disabled={busy || !testWhatsAppTo || !testWhatsAppTemplate} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-whatsapp-message", to: testWhatsAppTo, templateName: testWhatsAppTemplate }) }); toast("Test template accepted by Meta"); } catch (e) { setError(e instanceof Error ? e.message : "WhatsApp test failed."); } }}>Send test template</button></div>
+                        <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} /></div>
+                        <div className="field"><label htmlFor="company-wa-token">Permanent access token</label><input id="company-wa-token" className="input" type="password" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} /></div>
+                        <div className="field"><label htmlFor="company-wa-version">Graph API version</label><select id="company-wa-version" className="select" value={v.version ?? "v26.0"} onChange={(e) => update(c.key, "version", e.target.value)}><option value="v26.0">v26.0</option><option value="v23.0">v23.0</option></select></div>
+                        <span className="hint">Use a production token with WhatsApp messaging permissions and the Phone Number ID from Meta. Outside the customer-service window, send an approved template only.</span>
+                        <div className="form-row">
+                          <div className="field"><label htmlFor="company-test-wa">Test recipient (include country code)</label><input id="company-test-wa" className="input" value={testWhatsAppTo} onChange={(e) => setTestWhatsAppTo(e.target.value)} /></div>
+                          <div className="field"><label htmlFor="company-template">Template</label><input id="company-template" className="input" value={testWhatsAppTemplate} onChange={(e) => setTestWhatsAppTemplate(e.target.value)} /></div>
+                          <button className="btn btn-sm" type="button" onClick={() => api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ channel: "whatsapp", to: testWhatsAppTo, template: testWhatsAppTemplate }) })}>Send test</button>
+                        </div>
                       </>
                     )}
                     <span className="hint">Saved credentials are encrypted before storage and masked in the interface. These settings are isolated to this company.</span>
@@ -656,18 +689,22 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
               <h3 style={{ margin: 0 }}>Recent delivery status</h3>
               <p className="row-sub">Latest email and WhatsApp messages sent by this company.</p>
             </div>
-            {deliveries.length ? <div style={{ display: "grid", gap: 10 }}>
-              {deliveries.map((delivery) => (
-                <div key={delivery.id} className="setting" style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
-                  <div className="row-main">
-                    <div className="row-title">{delivery.channel === "whatsapp" ? "WhatsApp" : "Email"} · {delivery.recipient}</div>
-                    <div className="row-sub">{new Date(delivery.createdAt).toLocaleString()} {delivery.errorCode ? `· Error ${delivery.errorCode}` : ""}</div>
-                    {delivery.errorMessage && <div className="row-sub">{delivery.errorMessage}</div>}
+            {deliveries.length ? (
+              <div style={{ display: "grid", gap: 10 }}>
+                {deliveries.map((delivery) => (
+                  <div key={delivery.id} className="setting" style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+                    <div className="row-main">
+                      <div className="row-title">{delivery.channel === "whatsapp" ? "WhatsApp" : "Email"} · {delivery.recipient}</div>
+                      <div className="row-sub">{new Date(delivery.createdAt).toLocaleString()} {delivery.errorCode ? `· Error ${delivery.errorCode}` : ""}</div>
+                      {delivery.errorMessage && <div className="row-sub">{delivery.errorMessage}</div>}
+                    </div>
+                    <span className={`badge ${["delivered", "read"].includes(delivery.status) ? "badge-ok" : ""}`}>{delivery.status}</span>
                   </div>
-                  <span className={`badge ${["delivered", "read"].includes(delivery.status) ? "badge-ok" : ""}`}>{delivery.status}</span>
-                </div>
-              ))}
-            </div> : <p className="row-sub">No messages have been sent through the configured providers yet.</p>}
+                ))}
+              </div>
+            ) : (
+              <p className="row-sub">No messages have been sent through the configured providers yet.</p>
+            )}
           </div>
         )}
 
