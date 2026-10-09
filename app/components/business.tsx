@@ -8,10 +8,6 @@ import { EXPENSE_CATEGORIES } from "./forms";
 import { Empty, ErrorState, ListSkeleton, StatusBadge, useToast } from "./ui";
 
 const withVersion = (url: string, version: number) => `${url}?v=${version}`;
-const DEFAULT_PROVIDER_BY_CHANNEL = {
-  "notification.email": "resend",
-  "notification.whatsapp": "meta",
-} as const;
 
 /* ── Invoices ─────────────────────────────────────────────── */
 const INVOICE_FILTERS = [

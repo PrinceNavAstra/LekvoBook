@@ -13,6 +13,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The production build runs `prisma migrate deploy`, so CI needs a real (empty) database.
+    # This also proves every migration applies cleanly from scratch on each push.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lekvobook
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lekvobook?schema=public
       BETTER_AUTH_SECRET: ci-only-secret-value-at-least-32-characters-long
