@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     response = await fetch(`${base}/messages`, {
       method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: recipient, type: "template", template: { name: "hello_world", language: { code: "en_US" } } })
+      body: JSON.stringify({ messaging_product: "whatsapp", to: recipient, type: "template", template: { name: String(body.templateName || "hello_world").trim().replace(/[^a-zA-Z0-9_]/g, "").slice(0, 100), language: { code: String(body.templateLanguage || "en_US").slice(0, 20) } } })
     });
   } catch { return NextResponse.json({ error: "Could not reach Meta Graph API." }, { status: 502 }); }
   if (!response.ok) return NextResponse.json({ error: "Meta rejected the test template. Check recipient eligibility, token permissions, phone registration and template availability." }, { status: 502 });
