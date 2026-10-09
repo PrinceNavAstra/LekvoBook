@@ -368,3 +368,20 @@ model NotificationTemplate {
 }
 
 // Schema formatting normalized for Prisma CLI validation.
+
+
+model NotificationDelivery {
+  id                String   @id @default(cuid())
+  businessId        String
+  channel            String
+  recipient          String
+  providerMessageId  String?  @unique
+  status             String   @default("accepted")
+  errorCode          String?
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([businessId, channel, createdAt])
+  @@index([businessId, status, createdAt])
+}
