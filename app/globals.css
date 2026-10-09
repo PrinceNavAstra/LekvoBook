@@ -1597,3 +1597,103 @@ button:disabled,
   background: var(--brand-soft);
   color: var(--brand-ink);
 }
+
+
+/* ─── Form and modal polish: consistent field alignment ─────── */
+.sheet .form,
+.sheet form,
+.auth-card form {
+  width: 100%;
+  min-width: 0;
+}
+
+.sheet .form-row,
+.sheet .field-row,
+.sheet .grid-2,
+.sheet .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px 16px;
+}
+
+.sheet .field,
+.sheet .form-row > *,
+.sheet .field-row > *,
+.sheet .grid-2 > *,
+.sheet .form-grid > * {
+  min-width: 0;
+}
+
+.sheet .field > label,
+.sheet .field > .label {
+  display: block;
+  min-height: 18px;
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+
+.sheet .input,
+.sheet .select,
+.sheet .textarea,
+.sheet input:not([type="checkbox"]):not([type="radio"]),
+.sheet select,
+.sheet textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.sheet input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.sheet input[type="number"]::-webkit-inner-spin-button,
+.sheet input[type="number"]::-webkit-outer-spin-button {
+  margin-left: 8px;
+}
+
+.sheet .hint,
+.sheet .field small,
+.sheet .field .hint {
+  display: block;
+  min-height: 16px;
+  line-height: 1.35;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.sheet details {
+  margin-top: 2px;
+  border-radius: 10px;
+}
+.sheet details > summary {
+  cursor: pointer;
+  color: var(--brand-ink);
+  font-weight: 700;
+  padding: 8px 0;
+}
+.sheet details[open] > summary {
+  margin-bottom: 10px;
+}
+.sheet .btn-primary,
+.sheet .btn-primary:disabled,
+.sheet button[type="submit"] {
+  min-height: 46px;
+  border-radius: 10px;
+}
+
+@media (max-width: 520px) {
+  .sheet .form-row,
+  .sheet .field-row,
+  .sheet .grid-2,
+  .sheet .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
