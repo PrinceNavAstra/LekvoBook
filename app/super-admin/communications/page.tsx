@@ -7,7 +7,7 @@ const defaults: Config = {
   emailEnabled: false, emailProvider: "resend", emailFrom: "", emailReplyTo: "", emailApiKey: "",
   emailSmtpHost: "", emailSmtpPort: "587", emailSmtpSecure: false, emailSmtpUser: "", emailSmtpPassword: "",
   whatsappEnabled: false, whatsappAccountName: "", whatsappPhoneId: "", whatsappAppId: "", whatsappBusinessId: "",
-  whatsappToken: "", whatsappUrl: "https://graph.facebook.com", whatsappVersion: "v23.0",
+  whatsappToken: "", whatsappUrl: "https://graph.facebook.com", whatsappVersion: "v26.0",
   webhookVerifyToken: "", whatsappAppSecret: "", whatsappDefaultIncoming: false, whatsappDefaultOutgoing: false, whatsappAutoReadReceipt: true
 };
 export default function SuperAdminCommunicationsPage() {
