@@ -29,10 +29,11 @@ export async function POST(request: Request) {
   const config: any = row.config || {};
   const provider = String(row.provider || config.provider || "").toLowerCase();
 
+  let providerMessageId: string | null = null;
   try {
     if (channel === "email") {
       try {
-        await deliverEmail(config, { to, subject, text: message });
+        providerMessageId = await deliverEmail(config, { to, subject, text: message });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Company email delivery failed.";
         return NextResponse.json({ error: message }, { status: 502 });
@@ -62,9 +63,13 @@ export async function POST(request: Request) {
         body: JSON.stringify(payload)
       });
       if (!response.ok) return NextResponse.json({ error: "Meta rejected the message. Outside the customer-service window, use an approved template." }, { status: 502 });
-
+      const result = await response.json().catch(() => null) as { messages?: Array<{ id?: string }> } | null;
+      providerMessageId = result?.messages?.[0]?.id || null;
     }
-    return NextResponse.json({ ok: true, message: "Message accepted by the provider." });
+    await prisma.notificationDelivery.create({
+      data: { businessId: membership.businessId, channel, recipient: to, providerMessageId, status: "accepted" }
+    });
+    return NextResponse.json({ ok: true, message: "Message accepted by the provider.", status: "accepted", messageId: providerMessageId });
   } catch {
     return NextResponse.json({ error: "Could not reach the messaging provider. Check its configuration and try again." }, { status: 502 });
   }
