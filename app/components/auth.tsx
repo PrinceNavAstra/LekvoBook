@@ -382,6 +382,8 @@ export function ProfileSheet({
   const [value, setValue] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [currentEmailCodeSent, setCurrentEmailCodeSent] = useState(false);
+  const [contactInfo, setContactInfo] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactBusy, setContactBusy] = useState(false);
 
@@ -404,11 +406,26 @@ export function ProfileSheet({
 
   async function sendContactCode() {
     setContactError(null);
+    setContactInfo(null);
     setContactBusy(true);
     try {
+      if (field === "email") {
+        const result = await authClient.emailOtp.sendVerificationOtp({
+          email: user.email,
+          type: "email-verification",
+        });
+        if (result.error) throw new Error(result.error.message || "We could not send the code.");
+        setCurrentEmailCodeSent(true);
+        setSent(false);
+        setCode("");
+        setContactInfo("Enter the 8-digit code sent to your current email address.");
+        return;
+      }
+
       const res = await post<{ ok: boolean; purpose: string }>("/api/auth/change-contact", { field, value });
       await post("/api/auth/request-otp", { identifier: value, channel: field, purpose: res.purpose });
       setSent(true);
+      setContactInfo("Enter the 6-digit code sent to your mobile number.");
     } catch (err) {
       setContactError(err instanceof Error ? err.message : "We could not send the code.");
     } finally {
@@ -416,15 +433,56 @@ export function ProfileSheet({
     }
   }
 
-  async function verifyContact() {
+  async function requestNewEmailCode() {
     setContactError(null);
+    setContactInfo(null);
     setContactBusy(true);
     try {
-      await post("/api/auth/verify-otp", { identifier: value, code, channel: field, purpose: field === "mobile" ? "CHANGE_MOBILE" : "CHANGE_EMAIL" });
+      const newEmail = value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        throw new Error("Enter a valid new email address.");
+      }
+      if (!/^\d{8}$/.test(code)) {
+        throw new Error("Enter the 8-digit code sent to your current email.");
+      }
+      const result = await authClient.emailOtp.requestEmailChange({ newEmail, otp: code });
+      if (result.error) throw new Error(result.error.message || "We could not verify the current email.");
+      setSent(true);
+      setCode("");
+      setContactInfo("Enter the 8-digit code sent to your new email address.");
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : "We could not request the email change.");
+    } finally {
+      setContactBusy(false);
+    }
+  }
+
+  async function verifyContact() {
+    if (field === "email" && currentEmailCodeSent && !sent) {
+      await requestNewEmailCode();
+      return;
+    }
+
+    setContactError(null);
+    setContactInfo(null);
+    setContactBusy(true);
+    try {
+      if (field === "email") {
+        const result = await authClient.emailOtp.changeEmail({
+          newEmail: value.trim().toLowerCase(),
+          otp: code,
+        });
+        if (result.error) throw new Error(result.error.message || "That email code did not work.");
+        await post("/api/auth/sync-verification", { preferredLanguage: lang });
+      } else {
+        await post("/api/auth/verify-otp", { identifier: value, code, channel: field, purpose: "CHANGE_MOBILE" });
+      }
       toast(field === "mobile" ? "Mobile number updated" : "Email updated");
       onSaved();
       setField(null);
       setSent(false);
+      setCurrentEmailCodeSent(false);
+      setContactInfo(null);
       setCode("");
       setValue("");
     } catch (err) {
@@ -526,7 +584,7 @@ export function ProfileSheet({
               <div className="row-title">{current}</div>
             </div>
             {verified(at)}
-            <button className="btn btn-sm" onClick={() => { setField(key); setValue(""); setSent(false); setCode(""); setContactError(null); }}>
+            <button className="btn btn-sm" onClick={() => { setField(key); setValue(""); setSent(false); setCurrentEmailCodeSent(false); setContactInfo(null); setCode(""); setContactError(null); }}>
               Change
             </button>
           </div>
@@ -540,14 +598,15 @@ export function ProfileSheet({
             </div>
             {sent && (
               <div className="field">
-                <label htmlFor="pf-code">6-digit code</label>
-                <input id="pf-code" className="input num otp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
+                <label htmlFor="pf-code">{field === "email" ? (sent ? "8-digit code sent to new email" : "8-digit code sent to current email") : "6-digit code"}</label>
+                <input id="pf-code" className="input num otp" inputMode="numeric" maxLength={field === "email" ? 8 : 6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
               </div>
             )}
+            {contactInfo && !contactError && <Notice tone="note">{contactInfo}</Notice>}
             {contactError && <Notice>{contactError}</Notice>}
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-primary" disabled={contactBusy || !value || (sent && code.length !== 6)} onClick={sent ? verifyContact : sendContactCode}>
-                {contactBusy ? "Please wait…" : sent ? "Verify code" : "Send code"}
+              <button className="btn btn-primary" disabled={contactBusy || !value || (field === "email" && currentEmailCodeSent && code.length !== 8) || (sent && code.length !== (field === "email" ? 8 : 6))} onClick={sent || (field === "email" && currentEmailCodeSent) ? verifyContact : sendContactCode}>
+                {contactBusy ? "Please wait…" : sent ? "Verify code" : field === "email" && currentEmailCodeSent ? "Verify current email and send new code" : "Send code"}
               </button>
               <button className="btn" onClick={() => setField(null)}>
                 Cancel
