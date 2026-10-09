@@ -6,19 +6,14 @@ import {
   BarChart3,
   BookOpen,
   Home as HomeIcon,
-  LayoutDashboard,
   MoreHorizontal,
   Moon,
-  Package,
   Plus,
-  Receipt,
   Settings,
-  ShoppingCart,
   Sun,
   Truck,
   UserCircle2,
   Users,
-  WalletCards,
 } from "lucide-react";
 import { api, SIGNED_OUT_EVENT, useApi } from "@/lib/api";
 import { translations, type Language } from "@/lib/i18n";
