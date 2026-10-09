@@ -89,6 +89,7 @@ export const auth = betterAuth({
       allowedAttempts: 3,
       resendStrategy: "rotate",
       storeOTP: "hashed",
+      changeEmail: { enabled: true, verifyCurrentEmail: true },
       async sendVerificationOTP({ email, otp, type }) {
         await sendOtpEmail({ email, otp, type });
       },
