@@ -32,19 +32,19 @@ import { ListSkeleton, Sheet, ToastProvider } from "./components/ui";
 import { AuthGate, ProfileSheet as AccountSheet, SetupScreen, type SessionBusiness, type SessionUser } from "./components/auth";
 
 const TABS = [
-  { name: "Dashboard", icon: LayoutDashboard },
-  { name: "Ledger", icon: BookOpen },
+  { name: "Dashboard", icon: HomeIcon },
   { name: "Customers", icon: Users },
   { name: "Suppliers", icon: Truck },
-  { name: "Invoices", icon: Receipt },
-  { name: "Inventory", icon: Package },
-  { name: "Expenses", icon: WalletCards },
+  { name: "Ledger", icon: BookOpen },
   { name: "Reports", icon: BarChart3 },
   { name: "Settings", icon: Settings },
 ] as const;
 type TabName = (typeof TABS)[number]["name"];
 
-const MORE_TABS: TabName[] = ["Customers", "Suppliers", "Invoices", "Inventory", "Expenses", "Settings"];
+// Only these six core areas are shown in primary navigation.
+// Legacy inventory, invoices, and expenses data/routes are retained for safety,
+// but are no longer promoted as core features in the user interface.
+const MORE_TABS: TabName[] = ["Customers", "Suppliers", "Settings"];
 
 type SheetState =
   | { type: "add" }
@@ -131,7 +131,7 @@ function Root() {
 
 function App({ session, language, setLanguage, refreshSession, onSignedOut }: { session: Session; language: Language; setLanguage: (l: Language) => void; refreshSession: () => void; onSignedOut: () => void }) {
   const t = translations[language];
-  const label = (name: string) => t[name.toLowerCase()] ?? name;
+  const label = (name: string) => name === "Dashboard" ? "Home" : name === "Ledger" ? "Khata / Transactions" : t[name.toLowerCase()] ?? name;
   const [tab, setTab] = useState<TabName>("Dashboard");
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [version, setVersion] = useState(0);
