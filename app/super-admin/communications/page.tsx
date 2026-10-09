@@ -81,6 +81,7 @@ export default function SuperAdminCommunicationsPage() {
         <div className="form-row">{input("Graph API base URL", "whatsappUrl", "url", "https://graph.facebook.com")}{input("Graph API Version", "whatsappVersion", "text", "v23.0")}</div>
         {input("Webhook Verify Token (create a long random value)", "webhookVerifyToken", "password", MASK)}
         {input("Meta App Secret (used to verify webhook signatures)", "whatsappAppSecret", "password", MASK)}
+        <p className="hint">Configure this callback URL in the Meta Developer Dashboard: https://lekvobook.vercel.app/api/webhooks/whatsapp. Subscribe the Meta app to the WhatsApp Business Account (WABA) so message status events reach LekvoBook. The verify token and App Secret are platform-level Meta app credentials; each company’s Phone Number ID and access token remain company-specific.</p>
         {check("Default incoming account", "whatsappDefaultIncoming")}
         {check("Default outgoing account", "whatsappDefaultOutgoing")}
         {check("Allow automatic read receipts where supported", "whatsappAutoReadReceipt")}
