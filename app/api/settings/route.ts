@@ -4,6 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { encryptSecret } from "@/lib/secrets";
 
 const CHANNEL_KEYS = ["notification.email", "notification.whatsapp"] as const;
+const DEFAULT_PROVIDER_BY_CHANNEL = {
+  email: "resend",
+  whatsapp: "meta",
+} as const;
 const MASK = "••••••••";
 
 async function owner() {
@@ -99,7 +103,7 @@ export async function PUT(request: Request) {
     // Provider-specific fields are saved with this business only; credentials
     // are never read from or written to the global ApplicationSetting table.
     delete config.enabled;
-    const provider = String(input.provider ?? "").trim().toLowerCase();
+    const provider = String(input.provider ?? DEFAULT_PROVIDER_BY_CHANNEL[channel as keyof typeof DEFAULT_PROVIDER_BY_CHANNEL] ?? "").trim().toLowerCase();
     const enabled = input.enabled === true;
     if (enabled && channel === "email") {
       const sender = String(config.sender || "").trim();
