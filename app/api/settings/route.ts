@@ -119,8 +119,8 @@ export async function PUT(request: Request) {
       if (!["meta", "whatsapp cloud api", "whatsapp-cloud-api"].includes(provider)) {
         return NextResponse.json({ error: "Choose Meta WhatsApp Cloud API as the WhatsApp provider." }, { status: 400 });
       }
-      if (!String(config.sender || "").trim() || !(config.token || old.token)) {
-        return NextResponse.json({ error: "WhatsApp Phone Number ID and access token are required." }, { status: 400 });
+      if (!String(config.sender || "").trim() || !String(config.wabaId || "").trim() || !(config.token || old.token)) {
+        return NextResponse.json({ error: "WhatsApp Phone Number ID, WABA ID and access token are required." }, { status: 400 });
       }
     }
 
