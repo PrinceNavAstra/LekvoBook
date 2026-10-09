@@ -11,8 +11,33 @@ export default function AdminAccessPage() {
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function generatePassword() {
+    // Generate locally with the Web Crypto API; the password is never sent to a generator service.
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*()-_=+";
+    const values = new Uint8Array(24);
+    crypto.getRandomValues(values);
+    const generated = Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
+    setPassword(generated);
+    setShowPassword(true);
+    setPasswordNotice("A strong password was generated on this device. Save it in your password manager before continuing.");
+    setError(null);
+  }
+
+  async function copyPassword() {
+    if (!password) return;
+    try {
+      await navigator.clipboard.writeText(password);
+      setPasswordNotice("Password copied. Store it securely and clear your clipboard when finished.");
+    } catch {
+      setPasswordNotice("Clipboard access is unavailable. Select the visible password and copy it manually.");
+      setShowPassword(true);
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,8 +125,18 @@ export default function AdminAccessPage() {
         </div>
         <div className="field">
           <label htmlFor="admin-password">Password</label>
-          <input id="admin-password" className="input" type="password" autoComplete={mode === "setup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={mode === "setup" ? 12 : 1} maxLength={200} required />
-          {mode === "setup" && <span className="hint">Use at least 12 characters. Store it in a password manager.</span>}
+          <input id="admin-password" className="input" type={showPassword ? "text" : "password"} autoComplete={mode === "setup" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setPasswordNotice(null); }} minLength={mode === "setup" ? 12 : 1} maxLength={200} required />
+          {mode === "setup" && (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                <button className="btn" type="button" onClick={generatePassword}>Generate strong password</button>
+                <button className="btn" type="button" onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? "Hide password" : "Show password"}</button>
+                <button className="btn" type="button" onClick={copyPassword} disabled={!password}>Copy password</button>
+              </div>
+              <span className="hint">Use at least 12 characters. Generated passwords use your browser’s cryptographic random generator and are not sent to a third-party service.</span>
+            </>
+          )}
+          {passwordNotice && <div className="hint" role="status" aria-live="polite">{passwordNotice}</div>}
         </div>
 
         {error && <div className="alert" role="alert">{error}</div>}
