@@ -83,7 +83,7 @@ export default function SuperAdminCommunicationsPage() {
         {check("Default incoming account", "whatsappDefaultIncoming")}
         {check("Default outgoing account", "whatsappDefaultOutgoing")}
         {check("Allow automatic read receipts where supported", "whatsappAutoReadReceipt")}
-        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>Test recipient (E.164, e.g. +15551234567)</label><input className="input" value={testWhatsAppTo} onChange={e => setTestWhatsAppTo(e.target.value)} onChangeCapture={undefined} placeholder="+..." /></div><button className="btn" disabled={busy} onClick={() => test("test-whatsapp")}>Test credentials</button></div>
+        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>Test recipient (E.164, e.g. +15551234567)</label><input className="input" value={testWhatsAppTo} onChange={e => setTestWhatsAppTo(e.target.value)} placeholder="+..." /></div><button className="btn" disabled={busy} onClick={() => test("test-whatsapp")}>Test credentials</button><button className="btn" disabled={busy || !testWhatsAppTo} onClick={() => test("test-whatsapp-message", testWhatsAppTo)}>Send test template</button></div>
         <p className="hint">Credential test checks the token and Phone ID against Meta Graph API. Sending an actual WhatsApp message is a separate test and requires a recipient, permissions, and an approved template where required.</p>
       </div>
     </section>
