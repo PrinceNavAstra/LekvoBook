@@ -1,63 +1,85 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashOtp, randomCode } from "@/lib/auth";
-import { decryptSecret } from "@/lib/secrets";
+import { getCurrentUser, hashOtp, randomCode } from "@/lib/auth";
+import { sendSmsOtp } from "@/lib/sms-otp";
 
-async function sendNotification(channel: string, identifier: string, code: string, purpose: string) {
-  const setting = await prisma.applicationSetting.findUnique({ where: { key: `notification.${channel}` } });
-  const config = (setting?.value || {}) as any;
-  if (!config.enabled || !config.endpoint) {
-    if (process.env.NODE_ENV !== "production") return { delivered: true, devCode: code };
-    return { delivered: false };
-  }
-  const response = await fetch(config.endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(config.token ? { Authorization: `Bearer ${decryptSecret(config.token)}` } : {}),
-    },
-    body: JSON.stringify({
-      to: identifier,
-      recipient: identifier,
-      otp: code,
-      message: `Your Lekvo Book verification code is ${code}. It expires in 10 minutes.`,
-      purpose,
-    }),
-  });
-  return { delivered: response.ok };
+export const runtime = "nodejs";
+
+function normalizeMobile(value: string) {
+  const compact = value.trim().replace(/[\s()-]/g, "");
+  if (/^\d{10}$/.test(compact)) return \`+91\${compact}\`;
+  return compact;
 }
 
 export async function POST(request: Request) {
   try {
-    console.log("[OTP][request] start", { env: process.env.NODE_ENV, hasDatabaseUrl: Boolean(process.env.DATABASE_URL), dbHost: (() => { try { return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null; } catch { return "invalid-url"; } })() });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Please sign in with email OTP before verifying a mobile number." }, { status: 401 });
+
     const body = await request.json();
     const channel = body.channel === "mobile" ? "mobile" : "email";
-    const rawIdentifier = String(body.identifier || "").trim();
-    const identifier = channel === "mobile" ? rawIdentifier.replace(/[\s()-]/g, "") : rawIdentifier.toLowerCase();
-    const purpose = ["SIGNUP", "LOGIN", "CHANGE_EMAIL", "CHANGE_MOBILE"].includes(body.purpose) ? body.purpose : "LOGIN";
-    if (!identifier) return NextResponse.json({ error: "Email or mobile number is required." }, { status: 400 });
+    const purpose = String(body.purpose || "");
+    if (channel !== "mobile" || purpose !== "CHANGE_MOBILE") {
+      return NextResponse.json({ error: "Use email OTP to sign in. Mobile OTP is only used to verify a contact number after sign-in." }, { status: 400 });
+    }
 
-    console.log("[OTP][request] normalized", { channel, purpose, identifier, dbHost: (() => { try { return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null; } catch { return "invalid-url"; } })() });
-    const otpTable = await prisma.$queryRaw<Array<{ exists: boolean }>>`SELECT to_regclass('"OtpChallenge"') IS NOT NULL AS exists`;
-    console.log("[OTP][request] OtpChallenge table check", otpTable);
-    if (!otpTable[0]?.exists) return NextResponse.json({ error: "Database is connected, but OtpChallenge table is missing in this database." }, { status: 503 });
+    const rawIdentifier = String(body.identifier || "");
+    const identifier = normalizeMobile(rawIdentifier);
+    if (!/^\+[1-9]\d{7,14}$/.test(identifier)) {
+      return NextResponse.json({ error: "Enter a valid mobile number with country code, such as +919876543210." }, { status: 400 });
+    }
+
+    const duplicate = await prisma.user.findFirst({
+      where: { mobile: identifier, NOT: { id: user.id } },
+      select: { id: true },
+    });
+    if (duplicate) return NextResponse.json({ error: "That mobile number is already registered." }, { status: 409 });
+
+    const now = new Date();
+    const last15Minutes = new Date(now.getTime() - 15 * 60 * 1000);
+    const lastDay = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const [recent, daily] = await Promise.all([
+      prisma.otpChallenge.count({ where: { identifier, purpose: "CHANGE_MOBILE", createdAt: { gte: last15Minutes } } }),
+      prisma.otpChallenge.count({ where: { identifier, purpose: "CHANGE_MOBILE", createdAt: { gte: lastDay } } }),
+    ]);
+    if (recent >= 3 || daily >= 8) {
+      return NextResponse.json({ error: "Too many codes requested for this number. Try again later." }, { status: 429 });
+    }
 
     const code = randomCode();
-    await prisma.otpChallenge.updateMany({
-      where: { identifier, purpose, verifiedAt: null },
-      data: { expiresAt: new Date() },
-    });
-    await prisma.otpChallenge.create({
-      data: {
-        identifier, channel, purpose, codeHash: await hashOtp(code),
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      },
+    const challenge = await prisma.$transaction(async (tx) => {
+      await tx.otpChallenge.updateMany({
+        where: { identifier, purpose: "CHANGE_MOBILE", verifiedAt: null },
+        data: { expiresAt: now },
+      });
+      return tx.otpChallenge.create({
+        data: {
+          identifier,
+          channel: "mobile",
+          purpose: "CHANGE_MOBILE",
+          codeHash: await hashOtp(code),
+          expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        },
+      });
     });
 
-    const delivery = await sendNotification(channel === "mobile" ? "sms" : "email", identifier, code, purpose);
-    if (!delivery.delivered) return NextResponse.json({ error: `The ${channel} OTP provider is not configured.` }, { status: 503 });
-    return NextResponse.json({ ok: true, expiresIn: 600, ...(delivery.devCode ? { devCode: delivery.devCode } : {}) });
+    try {
+      await sendSmsOtp({ mobile: identifier, otp: code });
+    } catch (error) {
+      await prisma.otpChallenge.update({
+        where: { id: challenge.id },
+        data: { expiresAt: new Date() },
+      });
+      return NextResponse.json({
+        error: error instanceof Error ? error.message : "SMS delivery is not configured.",
+      }, { status: 503 });
+    }
+
+    return NextResponse.json({ ok: true, expiresIn: 600 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send OTP." }, { status: 500 });
+    console.error("[OTP][mobile-contact] Request failed", {
+      code: error && typeof error === "object" && "code" in error ? error.code : "unknown",
+    });
+    return NextResponse.json({ error: "Unable to send a mobile verification code." }, { status: 500 });
   }
 }
