@@ -11,7 +11,7 @@ const value = (config: MailConfig, ...keys: string[]) => {
   return "";
 };
 
-export async function deliverEmail(config: MailConfig, input: { to: string; subject: string; text: string; html?: string }) {
+export async function deliverEmail(config: MailConfig, input: { to: string; subject: string; text: string; html?: string }): Promise<string | null> {
   const provider = value(config, "emailProvider", "provider").toLowerCase();
   const from = value(config, "emailFrom", "sender");
   const replyTo = value(config, "emailReplyTo", "replyTo");
@@ -37,7 +37,8 @@ export async function deliverEmail(config: MailConfig, input: { to: string; subj
       throw new Error("The email provider could not be reached.");
     }
     if (!response.ok) throw new Error("The email provider rejected the message. Check the API key and verified sender.");
-    return;
+    const result = await response.json().catch(() => null) as { id?: string } | null;
+    return result?.id || null;
   }
 
   if (provider !== "smtp") throw new Error("Choose SMTP or Resend as the email provider.");
@@ -58,10 +59,11 @@ export async function deliverEmail(config: MailConfig, input: { to: string; subj
     connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000
   });
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from, to: input.to, ...(replyTo ? { replyTo } : {}),
       subject: input.subject, text: input.text, ...(input.html ? { html: input.html } : {})
     });
+    return typeof info.messageId === "string" ? info.messageId : null;
   } catch {
     throw new Error("SMTP could not deliver the email. Check the host, port, TLS and credentials.");
   } finally {
