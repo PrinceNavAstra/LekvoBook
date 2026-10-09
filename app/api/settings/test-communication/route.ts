@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
   const token = config.token ? decryptSecret(String(config.token)) : "";
   const phoneId = String(config.sender || "").trim();
-  const version = String(config.version || "v23.0").trim();
+  const version = String(config.version || "v26.0").trim();
   if (!token || !phoneId) return NextResponse.json({ error: "Save the WhatsApp Phone Number ID and access token first." }, { status: 400 });
   const base = `https://graph.facebook.com/${version}/${encodeURIComponent(phoneId)}`;
   if (action === "test-whatsapp") {
