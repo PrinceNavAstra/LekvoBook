@@ -611,10 +611,10 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                       <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email" || c.key === "notification.sms"} />
                     </div>
                     {c.key === "notification.email" && (
-                      <span className="hint">These credentials are for company-to-customer/supplier email only. LekvoBook sign-in OTP and platform system email are configured separately by the Super Admin.</span>
+                      <span className="hint">These credentials are for company-to-customer/supplier email only. Platform sign-in OTP and system email are configured by the Super Admin.</span>
                     )}
                     {c.key === "notification.sms" && (
-                      <span className="hint">Use credentials issued by your SMS provider. These settings apply only to this company’s customer/supplier messages.</span>
+                      <span className="hint">For Twilio, use the Account SID as API key, Auth Token as API secret, and a verified sender number. These settings apply only to this company’s customer/supplier messages.</span>
                     )}
                     <div className="field">
                       <label htmlFor={`${c.key}-t`}>API token</label>
