@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { sendOtpEmail } from "@/lib/email-otp";
 
 const productionURL = process.env.BETTER_AUTH_URL || "https://lekvobook.vercel.app";
-const deploymentURL = process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : undefined;
+const deploymentURL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
 const isPreview = process.env.VERCEL_ENV === "preview";
 const baseURL = isPreview && deploymentURL ? deploymentURL : productionURL;
 
@@ -68,7 +68,7 @@ export const auth = betterAuth({
   rateLimit: {
     enabled: true,
     storage: "database",
-    modelName: "RateLimit",
+    modelName: "rateLimit",
     window: 60,
     max: 30,
     customRules: {
