@@ -36,6 +36,45 @@ export async function POST(request: Request) {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
   }
-  // Event processing is intentionally not enabled yet.
-  return NextResponse.json({ received: true });
+  let payload: any;
+  try { payload = JSON.parse(rawBody); } catch { return NextResponse.json({ error: "Invalid webhook payload." }, { status: 400 }); }
+
+  // Meta includes the sender's phone_number_id in each message/status change.
+  // Resolve that ID to one company and update only that company's delivery rows.
+  const providers = await prisma.notificationProvider.findMany({
+    where: { channel: "whatsapp", enabled: true }
+  });
+  let processed = 0;
+  for (const entry of Array.isArray(payload.entry) ? payload.entry : []) {
+    for (const change of Array.isArray(entry.changes) ? entry.changes : []) {
+      const value = change?.value;
+      const phoneId = String(value?.metadata?.phone_number_id || "");
+      if (!phoneId) continue;
+      const provider = providers.find((item) => {
+        const providerConfig = (item.config || {}) as Record<string, unknown>;
+        return String(providerConfig.sender || "") === phoneId &&
+          (!providerConfig.wabaId || String(providerConfig.wabaId) === String(entry.id || ""));
+      });
+      if (!provider) continue;
+      for (const status of Array.isArray(value.statuses) ? value.statuses : []) {
+        const statusName = String(status.status || "").toLowerCase();
+        if (!["sent", "delivered", "read", "failed"].includes(statusName) || !status.id) continue;
+        const error = Array.isArray(status.errors) ? status.errors[0] : undefined;
+        const result = await prisma.notificationDelivery.updateMany({
+          where: {
+            businessId: provider.businessId,
+            channel: "whatsapp",
+            providerMessageId: String(status.id)
+          },
+          data: {
+            status: statusName,
+            errorCode: error?.code != null ? String(error.code) : null,
+            errorMessage: error?.title ? String(error.title).slice(0, 500) : null
+          }
+        });
+        processed += result.count;
+      }
+    }
+  }
+  return NextResponse.json({ received: true, processed });
 }
