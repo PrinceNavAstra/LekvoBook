@@ -171,9 +171,6 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
   const addForTab = () => {
     if (tab === "Customers") setSheet({ type: "party", kind: "customer" });
     else if (tab === "Suppliers") setSheet({ type: "party", kind: "supplier" });
-    else if (tab === "Invoices") setSheet({ type: "invoice" });
-    else if (tab === "Inventory") setSheet({ type: "product" });
-    else if (tab === "Expenses") setSheet({ type: "expense" });
     else openEntry("CREDIT");
   };
 
