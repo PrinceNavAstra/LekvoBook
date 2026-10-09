@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 function normalizeMobile(value: string) {
   const compact = value.trim().replace(/[\s()-]/g, "");
-  if (/^\d{10}$/.test(compact)) return \`+91\${compact}\`;
+  if (/^\d{10}$/.test(compact)) return `+91${compact}`;
   return compact;
 }
 
