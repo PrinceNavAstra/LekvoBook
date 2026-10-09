@@ -468,7 +468,12 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
     setBusy(true);
     setError(null);
     try {
-      await api("/api/settings", { method: "PUT", body: JSON.stringify(settings) });
+      const payload = {
+        ...settings,
+        "notification.email": { ...(settings["notification.email"] ?? {}), provider: settings["notification.email"]?.provider || "resend" },
+        "notification.whatsapp": { ...(settings["notification.whatsapp"] ?? {}), provider: settings["notification.whatsapp"]?.provider || "meta" }
+      };
+      await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });
       toast("Settings saved");
       const fresh = await api<{ settings: AllSettings }>("/api/settings");
       setSettings((s) => ({ ...s, ...fresh.settings }));
