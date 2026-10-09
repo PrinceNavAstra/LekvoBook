@@ -251,10 +251,9 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
         )}
 
         <div className="hint" style={{ textAlign: "center", marginTop: 10 }}>
-          Can't receive email OTP yet?{" "}
-          <a href="/admin-access" style={{ color: "var(--brand-ink)", fontWeight: 650 }}>
-            Owner recovery / Admin password sign-in
-          </a>
+          {sent
+            ? "Didn't receive the code? Check your spam folder or use a different email address."
+            : "Sign in securely with a one-time code sent to your email."}
         </div>
       </form>
     </main>
