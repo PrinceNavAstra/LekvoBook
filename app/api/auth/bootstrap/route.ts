@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     // The transaction-scoped advisory lock prevents two bootstrap requests from both claiming the first-owner slot.
     const created = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw\`SELECT pg_advisory_xact_lock(914832761)\`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(914832761)`;
       const existingUsers = await tx.user.count();
       if (existingUsers !== 0) return null;
 
