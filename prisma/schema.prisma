@@ -57,13 +57,69 @@ model User {
   mobile            String?             @unique
   passwordHash      String?
   preferredLanguage String              @default("en")
+  emailVerified     Boolean             @default(false)
   emailVerifiedAt   DateTime?
   mobileVerifiedAt  DateTime?
+  image             String?
   createdAt         DateTime            @default(now())
-  businesses   BusinessUser[]
-  transactions LedgerTransaction[]
-  sessions     AuthSession[]
-  appSettings  ApplicationSetting[]
+  updatedAt         DateTime            @default(now()) @updatedAt
+  businesses        BusinessUser[]
+  transactions      LedgerTransaction[]
+  legacySessions    AuthSession[]
+  sessions          Session[]
+  accounts          Account[]
+  appSettings       ApplicationSetting[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+}
+
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
 }
 
 model Business {
