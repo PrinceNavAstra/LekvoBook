@@ -431,13 +431,13 @@ export function ReportsView({ version }: { version: number }) {
 }
 
 /* ── Settings ─────────────────────────────────────────────── */
-type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string };
+type ChannelSettings = { enabled?: boolean; provider?: string; endpoint?: string; token?: string; apiKey?: string; apiSecret?: string; sender?: string; replyTo?: string; smtpHost?: string; smtpPort?: string; smtpSecure?: boolean; smtpUser?: string; smtpPassword?: string; wabaId?: string; version?: string };
 type GeneralSettings = { currency?: string; timezone?: string; dateFormat?: string };
 type AllSettings = Record<string, ChannelSettings & GeneralSettings>;
 
 const CHANNELS = [
-  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, statements and account updates to customers and suppliers", sender: "From address" },
-  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends approved WhatsApp messages to customers and suppliers through Meta WhatsApp Cloud API", sender: "Phone number ID" },
+  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, receipts, statements and payment reminders to customers and suppliers", sender: "From address" },
+  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends approved WhatsApp messages through Meta WhatsApp Cloud API", sender: "Phone Number ID" },
 ];
 
 export function SettingsView({ businessName, dark, onToggleTheme }: { businessName: string; dark: boolean; onToggleTheme: () => void }) {
@@ -446,7 +446,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);\n  const [testEmailTo, setTestEmailTo] = useState("");\n  const [testWhatsAppTo, setTestWhatsAppTo] = useState("");
 
   useEffect(() => {
     api<{ settings: AllSettings }>("/api/settings")
@@ -598,35 +598,42 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                     <div className="form-row">
                       <div className="field">
                         <label htmlFor={`${c.key}-p`}>Provider</label>
-                        <input id={`${c.key}-p`} className="input" value={v.provider ?? ""} onChange={(e) => update(c.key, "provider", e.target.value)} />
+                        <select id={`${c.key}-p`} className="select" value={v.provider ?? (c.key === "notification.email" ? "resend" : "meta")} onChange={(e) => update(c.key, "provider", e.target.value)}>
+                          {c.key === "notification.email" ? <><option value="resend">Resend API</option><option value="smtp">SMTP</option></> : <option value="meta">Meta WhatsApp Cloud API</option>}
+                        </select>
                       </div>
                       <div className="field">
                         <label htmlFor={`${c.key}-s`}>{c.sender}</label>
-                        <input id={`${c.key}-s`} className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} />
+                        <input id={`${c.key}-s`} className="input" value={v.sender ?? ""} onChange={(e) => update(c.key, "sender", e.target.value)} placeholder={c.key === "notification.email" ? "LekvoBook <accounts@yourcompany.com>" : "Meta Phone Number ID"} />
                       </div>
                     </div>
-                    <div className="field">
-                      <label htmlFor={`${c.key}-e`}>{c.key === "notification.email" ? "API endpoint (managed automatically)" : "Graph API endpoint"}</label>
-                      <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email"} />
-                    </div>
-                    {c.key === "notification.email" && (
-                      <span className="hint">Configure the company’s customer and supplier email sender here. Use Resend as the provider and enter your verified From address and API key. Platform authentication email is managed separately by the Super Admin.</span>
+                    {c.key === "notification.email" ? (
+                      <>
+                        {v.provider === "smtp" ? <>
+                          <div className="form-row">
+                            <div className="field"><label htmlFor="company-smtp-host">SMTP host</label><input id="company-smtp-host" className="input" value={v.smtpHost ?? ""} onChange={(e) => update(c.key, "smtpHost", e.target.value)} placeholder="smtp.example.com" /></div>
+                            <div className="field"><label htmlFor="company-smtp-port">SMTP port</label><input id="company-smtp-port" className="input" type="number" min="1" max="65535" value={v.smtpPort ?? "587"} onChange={(e) => update(c.key, "smtpPort", e.target.value)} /></div>
+                          </div>
+                          <div className="form-row">
+                            <div className="field"><label htmlFor="company-smtp-user">SMTP username</label><input id="company-smtp-user" className="input" value={v.smtpUser ?? ""} onChange={(e) => update(c.key, "smtpUser", e.target.value)} autoComplete="off" /></div>
+                            <div className="field"><label htmlFor="company-smtp-password">SMTP password / app password</label><input id="company-smtp-password" className="input" type="password" value={v.smtpPassword ?? ""} onChange={(e) => update(c.key, "smtpPassword", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>
+                          </div>
+                          <label className="check"><input type="checkbox" checked={!!v.smtpSecure || v.smtpPort === "465"} onChange={(e) => update(c.key, "smtpSecure", e.target.checked)} /><span>Use implicit TLS (usually port 465)</span></label>
+                        </> : <div className="field"><label htmlFor="company-resend-key">Resend API key</label><input id="company-resend-key" className="input" type="password" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "apiKey", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>}
+                        <div className="field"><label htmlFor="company-email-reply">Reply-to address (optional)</label><input id="company-email-reply" className="input" type="email" value={v.replyTo ?? ""} onChange={(e) => update(c.key, "replyTo", e.target.value)} placeholder="support@yourcompany.com" /></div>
+                        <span className="hint">These settings send company invoices, receipts, statements and reminders. Platform sign-in and password-reset emails are managed separately by Super Admin.</span>
+                        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label htmlFor="company-test-email">Send test email to</label><input id="company-test-email" className="input" type="email" value={testEmailTo} onChange={(e) => setTestEmailTo(e.target.value)} placeholder="you@example.com" /></div><button className="btn btn-sm" disabled={busy || !testEmailTo} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-email", to: testEmailTo }) }); toast("Test email accepted by provider"); } catch (e) { setError(e instanceof Error ? e.message : "Email test failed."); } }}>Test email</button></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.wabaId ?? ""} onChange={(e) => update(c.key, "wabaId", e.target.value)} placeholder="Meta WhatsApp Business Account ID" /></div>
+                        <div className="field"><label htmlFor="company-wa-token">Permanent access token</label><input id="company-wa-token" className="input" type="password" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} autoComplete="new-password" placeholder="Saved value is masked" /></div>
+                        <div className="field"><label htmlFor="company-wa-version">Graph API version</label><select id="company-wa-version" className="select" value={v.version ?? "v23.0"} onChange={(e) => update(c.key, "version", e.target.value)}>{["v23.0", "v22.0", "v21.0"].map((version) => <option key={version} value={version}>{version}</option>)}</select></div>
+                        <span className="hint">Use a production token with WhatsApp messaging permissions and the Phone Number ID from Meta. Outside the customer-service window, send an approved template. Credentials are private to this company.</span>
+                        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label htmlFor="company-test-wa">Test recipient (include country code)</label><input id="company-test-wa" className="input" value={testWhatsAppTo} onChange={(e) => setTestWhatsAppTo(e.target.value)} placeholder="+91..." /></div><button className="btn btn-sm" disabled={busy} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-whatsapp" }) }); toast("Meta credentials verified"); } catch (e) { setError(e instanceof Error ? e.message : "WhatsApp test failed."); } }}>Test connection</button><button className="btn btn-sm" disabled={busy || !testWhatsAppTo} onClick={async () => { try { await save(); await api("/api/settings/test-communication", { method: "POST", body: JSON.stringify({ action: "test-whatsapp-message", to: testWhatsAppTo }) }); toast("Test template accepted by Meta"); } catch (e) { setError(e instanceof Error ? e.message : "WhatsApp test failed."); } }}>Send test template</button></div>
+                      </>
                     )}
-                    <div className="field">
-                      <label htmlFor={`${c.key}-t`}>API token</label>
-                      <input id={`${c.key}-t`} className="input" type="password" autoComplete="off" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} />
-                    </div>
-                    <div className="form-row">
-                      <div className="field">
-                        <label htmlFor={`${c.key}-k`}>API key</label>
-                        <input id={`${c.key}-k`} className="input" type="password" autoComplete="off" value={v.apiKey ?? ""} onChange={(e) => update(c.key, "apiKey", e.target.value)} />
-                      </div>
-                      <div className="field">
-                        <label htmlFor={`${c.key}-x`}>API secret</label>
-                        <input id={`${c.key}-x`} className="input" type="password" autoComplete="off" value={v.apiSecret ?? ""} onChange={(e) => update(c.key, "apiSecret", e.target.value)} />
-                      </div>
-                    </div>
-                    <span className="hint">Credentials are encrypted before storage. Saved values are masked in the interface. These settings are private to this company.</span>
+                    <span className="hint">Saved credentials are encrypted before storage and masked in the interface. These settings are isolated to this company.</span>
                   </div>
                 )}
               </div>
