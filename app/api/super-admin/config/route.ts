@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
     "emailSmtpHost", "emailSmtpPort", "emailSmtpSecure", "emailSmtpUser", "emailSmtpPassword",
     "whatsappEnabled", "whatsappAccountName", "whatsappPhoneId", "whatsappAppId",
     "whatsappBusinessId", "whatsappToken", "whatsappUrl", "whatsappVersion",
-    "webhookVerifyToken", "whatsappDefaultIncoming", "whatsappDefaultOutgoing", "whatsappAutoReadReceipt"
+    "webhookVerifyToken", "whatsappAppSecret", "whatsappDefaultIncoming", "whatsappDefaultOutgoing", "whatsappAutoReadReceipt"
   ];
   for (const field of allowed) {
     if (body[field] === undefined) continue;
