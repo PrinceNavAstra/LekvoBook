@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { AlertCircle, BookOpen, Check, LogOut } from "lucide-react";
 import { api, post } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import { translations, type Language } from "@/lib/i18n";
 import { Sheet, useToast } from "./ui";
 
@@ -73,21 +74,13 @@ function LanguageSelect({ value, onChange, label = "Language" }: { value: Langua
 export function AuthGate({ language, setLanguage, onDone }: { language: Language; setLanguage: (l: Language) => void; onDone: () => void }) {
   const w = AUTH_COPY[language];
   const [signup, setSignup] = useState(false);
-  const [channel, setChannel] = useState<"email" | "mobile">("email");
-  const [second, setSecond] = useState(false); // signup: verifying the other contact
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-
-  const active: "email" | "mobile" = second ? (channel === "email" ? "mobile" : "email") : channel;
-  const identifier = active === "email" ? email : mobile;
-  const purpose = second ? (active === "mobile" ? "CHANGE_MOBILE" : "CHANGE_EMAIL") : signup ? "SIGNUP" : "LOGIN";
 
   const reset = (toSignup: boolean) => {
     setSignup(toSignup);
@@ -95,22 +88,33 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
     setCode("");
     setError(null);
     setInfo(null);
-    setDevCode(null);
   };
 
   async function send() {
     setError(null);
     setInfo(null);
-    if (signup && !second && !name.trim()) return setError("Enter your name.");
-    if (signup && !second && (!email.trim() || !mobile.trim())) return setError("Enter both your email and mobile number. We verify each one.");
-    if (!identifier.trim()) return setError(active === "email" ? "Enter your email address." : "Enter your mobile number.");
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (signup && name.trim().length < 2) {
+      setError("Enter your full name.");
+      return;
+    }
+
     setBusy(true);
     try {
-      const res = await post<{ devCode?: string }>("/api/auth/request-otp", { identifier, channel: active, purpose });
+      const response = await authClient.emailOtp.sendVerificationOtp({
+        email: normalizedEmail,
+        type: "sign-in",
+      });
+      if (response.error) throw new Error(response.error.message || "We could not send the code.");
       setSent(true);
-      setDevCode(res.devCode ?? null);
+      setEmail(normalizedEmail);
+      setInfo("Enter the 8-digit code sent to your email. It expires in 5 minutes.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "We could not send the code.");
+      setError(e instanceof Error ? e.message : "We could not send the code. Check the email provider configuration.");
     } finally {
       setBusy(false);
     }
@@ -118,20 +122,26 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
 
   async function verify() {
     setError(null);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^\d{8}$/.test(code)) {
+      setError("Enter the 8-digit code.");
+      return;
+    }
     setBusy(true);
     try {
-      await post("/api/auth/verify-otp", { identifier, code, channel: active, purpose, name, language, email, mobile });
-      if (signup && !second) {
-        setSecond(true);
-        setSent(false);
-        setCode("");
-        setDevCode(null);
-        setInfo(`${active === "email" ? "Email" : "Mobile number"} verified. Now verify your ${active === "email" ? "mobile number" : "email"}.`);
-        return;
-      }
+      const displayName = name.trim() || normalizedEmail.split("@")[0] || "LekvoBook User";
+      const response = await authClient.signIn.emailOtp({
+        email: normalizedEmail,
+        otp: code,
+        name: displayName,
+      });
+      if (response.error) throw new Error(response.error.message || "That code did not work.");
+
+      // Keep the legacy display timestamp in sync. Better Auth remains the source of truth.
+      await post("/api/auth/sync-verification", { preferredLanguage: language }).catch(() => undefined);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That code did not work.");
+      setError(e instanceof Error ? e.message : "That code did not work. Request a new code and try again.");
     } finally {
       setBusy(false);
     }
@@ -152,106 +162,100 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
         </div>
 
         <div>
-          <h1 className="auth-title">{second ? "Verify your second contact" : signup ? w.signup : w.login}</h1>
+          <h1 className="auth-title">{signup ? w.signup : w.login}</h1>
           <p className="tone-muted" style={{ marginTop: 6 }}>
-            {w.help}
+            Secure passwordless sign-in. Codes are hashed in the database and expire after five minutes.
           </p>
         </div>
 
-        {!second && (
-          <div className="seg" role="group" aria-label="Sign in or create account">
-            <button type="button" aria-pressed={!signup} onClick={() => reset(false)}>
-              {w.login}
-            </button>
-            <button type="button" aria-pressed={signup} onClick={() => reset(true)}>
-              {w.signup}
-            </button>
-          </div>
-        )}
+        <div className="seg" role="group" aria-label="Sign in or create account">
+          <button type="button" aria-pressed={!signup} onClick={() => reset(false)}>
+            {w.login}
+          </button>
+          <button type="button" aria-pressed={signup} onClick={() => reset(true)}>
+            {w.signup}
+          </button>
+        </div>
 
-        {signup && !second && (
+        {signup && (
           <div className="field">
             <label htmlFor="a-name">{w.name}</label>
-            <input id="a-name" className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            <input
+              id="a-name"
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              minLength={2}
+              maxLength={100}
+              disabled={sent}
+              required
+            />
           </div>
         )}
 
-        {signup && !second ? (
-          <>
-            <div className="field">
-              <label htmlFor="a-email">{w.email}</label>
-              <input id="a-email" className="input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={sent} />
-            </div>
-            <div className="field">
-              <label htmlFor="a-mobile">{w.mobile}</label>
-              <input id="a-mobile" className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="+91" value={mobile} onChange={(e) => setMobile(e.target.value)} disabled={sent} />
-            </div>
-            <div className="field">
-              <span className="label">Send the first code to</span>
-              <div className="seg" role="group" aria-label="First code goes to">
-                <button type="button" aria-pressed={channel === "email"} disabled={sent} onClick={() => setChannel("email")}>
-                  Email
-                </button>
-                <button type="button" aria-pressed={channel === "mobile"} disabled={sent} onClick={() => setChannel("mobile")}>
-                  Mobile
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {!second && (
-              <div className="seg" role="group" aria-label="Where to send the code">
-                <button type="button" aria-pressed={channel === "email"} disabled={sent} onClick={() => setChannel("email")}>
-                  Email
-                </button>
-                <button type="button" aria-pressed={channel === "mobile"} disabled={sent} onClick={() => setChannel("mobile")}>
-                  Mobile
-                </button>
-              </div>
-            )}
-            <div className="field">
-              <label htmlFor="a-id">{active === "email" ? w.email : w.mobile}</label>
-              <input
-                id="a-id"
-                className="input"
-                type={active === "email" ? "email" : "tel"}
-                inputMode={active === "email" ? "email" : "tel"}
-                autoComplete={active === "email" ? "email" : "tel"}
-                value={identifier}
-                onChange={(e) => (active === "email" ? setEmail(e.target.value) : setMobile(e.target.value))}
-                disabled={sent}
-              />
-            </div>
-          </>
-        )}
+        <div className="field">
+          <label htmlFor="a-email">{w.email}</label>
+          <input
+            id="a-email"
+            className="input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            maxLength={254}
+            disabled={sent}
+            required
+          />
+        </div>
 
         {sent && (
           <div className="field">
-            <label htmlFor="a-code">{w.otp}</label>
-            <input id="a-code" className="input num otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
-            <span className="hint">Sent to {identifier}. It expires in 10 minutes.</span>
+            <label htmlFor="a-code">8-digit verification code</label>
+            <input
+              id="a-code"
+              className="input num otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              autoFocus
+              required
+            />
+            <span className="hint">It expires in 5 minutes. Never share this code with anyone.</span>
           </div>
         )}
 
-        {devCode && <Notice tone="note">Development mode: your code is {devCode}.</Notice>}
         {info && !error && <Notice tone="note">{info}</Notice>}
         {error && <Notice>{error}</Notice>}
 
-        <button className="btn btn-primary" disabled={busy || (sent && code.length !== 6)}>
-          {busy ? "Please wait…" : sent ? w.verify : w.send}
+        <button className="btn btn-primary" disabled={busy || (sent && code.length !== 8)}>
+          {busy ? "Please wait…" : sent ? "Verify and sign in" : w.send}
         </button>
+
         {sent && (
-          <button type="button" className="btn-link" onClick={() => { setSent(false); setCode(""); setError(null); }}>
-            Use a different {active === "email" ? "email" : "number"}
+          <button
+            type="button"
+            className="btn-link"
+            onClick={() => {
+              setSent(false);
+              setCode("");
+              setError(null);
+              setInfo(null);
+            }}
+          >
+            Use a different email address
           </button>
         )}
-        <p className="hint" style={{ textAlign: "center", marginTop: 12 }}>
-          Trouble signing in because OTP delivery is unavailable?{" "}
+
+        <div className="hint" style={{ textAlign: "center", marginTop: 10 }}>
+          Can't receive email OTP yet?{" "}
           <a href="/admin-access" style={{ color: "var(--brand-ink)", fontWeight: 650 }}>
-            Set up the first Owner or sign in with an admin password
+            Owner recovery / Admin password sign-in
           </a>
-        </p>
+        </div>
       </form>
     </main>
   );
@@ -378,6 +382,8 @@ export function ProfileSheet({
   const [value, setValue] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [currentEmailCodeSent, setCurrentEmailCodeSent] = useState(false);
+  const [contactInfo, setContactInfo] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactBusy, setContactBusy] = useState(false);
 
@@ -400,11 +406,26 @@ export function ProfileSheet({
 
   async function sendContactCode() {
     setContactError(null);
+    setContactInfo(null);
     setContactBusy(true);
     try {
+      if (field === "email") {
+        const result = await authClient.emailOtp.sendVerificationOtp({
+          email: user.email,
+          type: "email-verification",
+        });
+        if (result.error) throw new Error(result.error.message || "We could not send the code.");
+        setCurrentEmailCodeSent(true);
+        setSent(false);
+        setCode("");
+        setContactInfo("Enter the 8-digit code sent to your current email address.");
+        return;
+      }
+
       const res = await post<{ ok: boolean; purpose: string }>("/api/auth/change-contact", { field, value });
       await post("/api/auth/request-otp", { identifier: value, channel: field, purpose: res.purpose });
       setSent(true);
+      setContactInfo("Enter the 6-digit code sent to your mobile number.");
     } catch (err) {
       setContactError(err instanceof Error ? err.message : "We could not send the code.");
     } finally {
@@ -412,15 +433,56 @@ export function ProfileSheet({
     }
   }
 
-  async function verifyContact() {
+  async function requestNewEmailCode() {
     setContactError(null);
+    setContactInfo(null);
     setContactBusy(true);
     try {
-      await post("/api/auth/verify-otp", { identifier: value, code, channel: field, purpose: field === "mobile" ? "CHANGE_MOBILE" : "CHANGE_EMAIL" });
+      const newEmail = value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        throw new Error("Enter a valid new email address.");
+      }
+      if (!/^\d{8}$/.test(code)) {
+        throw new Error("Enter the 8-digit code sent to your current email.");
+      }
+      const result = await authClient.emailOtp.requestEmailChange({ newEmail, otp: code });
+      if (result.error) throw new Error(result.error.message || "We could not verify the current email.");
+      setSent(true);
+      setCode("");
+      setContactInfo("Enter the 8-digit code sent to your new email address.");
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : "We could not request the email change.");
+    } finally {
+      setContactBusy(false);
+    }
+  }
+
+  async function verifyContact() {
+    if (field === "email" && currentEmailCodeSent && !sent) {
+      await requestNewEmailCode();
+      return;
+    }
+
+    setContactError(null);
+    setContactInfo(null);
+    setContactBusy(true);
+    try {
+      if (field === "email") {
+        const result = await authClient.emailOtp.changeEmail({
+          newEmail: value.trim().toLowerCase(),
+          otp: code,
+        });
+        if (result.error) throw new Error(result.error.message || "That email code did not work.");
+        await post("/api/auth/sync-verification", { preferredLanguage: lang });
+      } else {
+        await post("/api/auth/verify-otp", { identifier: value, code, channel: field, purpose: "CHANGE_MOBILE" });
+      }
       toast(field === "mobile" ? "Mobile number updated" : "Email updated");
       onSaved();
       setField(null);
       setSent(false);
+      setCurrentEmailCodeSent(false);
+      setContactInfo(null);
       setCode("");
       setValue("");
     } catch (err) {
@@ -522,7 +584,7 @@ export function ProfileSheet({
               <div className="row-title">{current}</div>
             </div>
             {verified(at)}
-            <button className="btn btn-sm" onClick={() => { setField(key); setValue(""); setSent(false); setCode(""); setContactError(null); }}>
+            <button className="btn btn-sm" onClick={() => { setField(key); setValue(""); setSent(false); setCurrentEmailCodeSent(false); setContactInfo(null); setCode(""); setContactError(null); }}>
               Change
             </button>
           </div>
@@ -534,16 +596,17 @@ export function ProfileSheet({
               <label htmlFor="pf-new">{field === "email" ? "New email address" : "New mobile number"}</label>
               <input id="pf-new" className="input" type={field === "email" ? "email" : "tel"} value={value} onChange={(e) => setValue(e.target.value)} disabled={sent} />
             </div>
-            {sent && (
+            {(sent || (field === "email" && currentEmailCodeSent)) && (
               <div className="field">
-                <label htmlFor="pf-code">6-digit code</label>
-                <input id="pf-code" className="input num otp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
+                <label htmlFor="pf-code">{field === "email" ? (sent ? "8-digit code sent to new email" : "8-digit code sent to current email") : "6-digit code"}</label>
+                <input id="pf-code" className="input num otp" inputMode="numeric" maxLength={field === "email" ? 8 : 6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus />
               </div>
             )}
+            {contactInfo && !contactError && <Notice tone="note">{contactInfo}</Notice>}
             {contactError && <Notice>{contactError}</Notice>}
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-primary" disabled={contactBusy || !value || (sent && code.length !== 6)} onClick={sent ? verifyContact : sendContactCode}>
-                {contactBusy ? "Please wait…" : sent ? "Verify code" : "Send code"}
+              <button className="btn btn-primary" disabled={contactBusy || !value || (field === "email" && currentEmailCodeSent && code.length !== 8) || (sent && code.length !== (field === "email" ? 8 : 6))} onClick={sent || (field === "email" && currentEmailCodeSent) ? verifyContact : sendContactCode}>
+                {contactBusy ? "Please wait…" : sent ? "Verify code" : field === "email" && currentEmailCodeSent ? "Verify current email and send new code" : "Send code"}
               </button>
               <button className="btn" onClick={() => setField(null)}>
                 Cancel

@@ -1,0 +1,35 @@
+name: Build validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - security/better-auth-email-otp
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lekvobook?schema=public
+      BETTER_AUTH_SECRET: ci-only-secret-value-at-least-32-characters-long
+      BETTER_AUTH_URL: https://lekvobook.vercel.app
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install
+      - name: Audit all dependencies
+        run: npm audit --audit-level=high
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+      - name: Build application
+        run: npm run build

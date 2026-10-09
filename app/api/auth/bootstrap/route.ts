@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { auth } from "@/lib/better-auth";
 import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
@@ -12,11 +12,17 @@ function matchesSecret(supplied: string, expected: string): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+function copyCookies(source: Headers, destination: Headers) {
+  const headersWithGetSetCookie = source as Headers & { getSetCookie?: () => string[] };
+  const cookies = headersWithGetSetCookie.getSetCookie?.() ?? [source.get("set-cookie") ?? ""].filter(Boolean);
+  for (const cookie of cookies) destination.append("set-cookie", cookie);
+}
+
 export async function POST(request: Request) {
   try {
     const expectedSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
     if (!expectedSecret) {
-      return NextResponse.json({ error: "First-owner setup is not enabled on this deployment." }, { status: 503 });
+      return NextResponse.json({ error: "First-owner setup is disabled on this deployment." }, { status: 503 });
     }
 
     const body = await request.json();
@@ -43,56 +49,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Choose a password between 12 and 200 characters." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const existingOwner = await tx.businessUser.findFirst({
-        where: { role: "OWNER" },
-        select: { id: true },
-      });
-      if (existingOwner) return null;
+    // The transaction-scoped advisory lock prevents two bootstrap requests from both claiming the first-owner slot.
+    const created = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(914832761)`;
+      const existingUsers = await tx.user.count();
+      if (existingUsers !== 0) return null;
 
-      const passwordHash = hashPassword(password);
-      const existingUser = await tx.user.findUnique({ where: { email } });
-      const user = existingUser
-        ? await tx.user.update({ where: { id: existingUser.id }, data: { name, passwordHash } })
-        : await tx.user.create({ data: { name, email, passwordHash, preferredLanguage: "en" } });
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          emailVerified: false,
+          preferredLanguage: "en",
+        },
+      });
+
+      await tx.account.create({
+        data: {
+          accountId: user.id,
+          providerId: "credential",
+          userId: user.id,
+          password: hashPassword(password),
+        },
+      });
 
       const business = await tx.business.create({
         data: {
           name: businessName,
           email,
-          users: {
-            create: {
-              userId: user.id,
-              role: "OWNER",
-            },
-          },
+          users: { create: { userId: user.id, role: "OWNER" } },
         },
       });
 
       return { user, business };
     }, { isolationLevel: "Serializable" });
 
-    if (!result) {
-      return NextResponse.json({ error: "An Owner is already configured. Use the admin password sign-in instead." }, { status: 409 });
+    if (!created) {
+      return NextResponse.json({
+        error: "First-owner setup is permanently locked because an account already exists. Use the normal sign-in page.",
+      }, { status: 409 });
     }
 
-    await createSession(result.user.id);
-    console.info("[AUTH][bootstrap] First Owner account created", {
-      userId: result.user.id,
-      businessId: result.business.id,
-      email: result.user.email,
+    const signedIn = await auth.api.signInEmail({
+      body: { email, password },
+      headers: request.headers,
+      returnHeaders: true,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
-      user: { id: result.user.id, name: result.user.name, email: result.user.email },
-      business: { id: result.business.id, name: result.business.name },
+      user: { id: created.user.id, name: created.user.name, email: created.user.email },
+      business: { id: created.business.id, name: created.business.name },
     });
+    copyCookies(signedIn.headers, response.headers);
+
+    console.info("[AUTH][bootstrap] First Owner account created", {
+      userId: created.user.id,
+      businessId: created.business.id,
+    });
+    return response;
   } catch (error) {
-    console.error("[AUTH][bootstrap] Failed", error);
-    if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
-      return NextResponse.json({ error: "Another setup request was processed first. Try signing in." }, { status: 409 });
-    }
-    return NextResponse.json({ error: "We could not set up the first Owner account. Check the server logs and try again." }, { status: 500 });
+    console.error("[AUTH][bootstrap] Failed", {
+      code: error && typeof error === "object" && "code" in error ? error.code : "unknown",
+    });
+    return NextResponse.json({
+      error: "We could not set up the first Owner account. Check the server logs and try again.",
+    }, { status: 500 });
   }
 }
