@@ -55,7 +55,7 @@ export default function SuperAdminCommunicationsPage() {
   const check = (label: string, key: string) => <label className="check"><input type="checkbox" checked={Boolean(config[key])} onChange={e => set(key, e.target.checked)} /><span>{label}</span></label>;
   if (loading) return <main className="container"><section className="card"><div className="card-head"><h2>Super Admin Communications</h2></div><p>Loading configuration…</p></section></main>;
   return <main className="container" style={{ maxWidth: 1120, margin: "32px auto", padding: 20 }}>
-    <header style={{ marginBottom: 20 }}><h1>Super Admin · Communications</h1><p>Platform-wide system email and Meta WhatsApp accounts. Company owners cannot edit these settings.</p></header>
+    <header style={{ marginBottom: 20 }}><h1>Super Admin · Communications</h1><p>Platform-wide authentication email and Meta app configuration. Company owners cannot view or edit platform email credentials.</p></header>
     {error && <div className="alert" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
     {notice && <div className="alert alert-note" role="status" style={{ marginBottom: 16 }}>{notice}</div>}
     <section className="card" style={{ marginBottom: 20 }}>
@@ -63,11 +63,11 @@ export default function SuperAdminCommunicationsPage() {
       <div className="form" style={{ padding: 18 }}>
         {check("Enable platform email", "emailEnabled")}
         <div className="form-row">
-          <div className="field"><label>Provider</label><select className="select" value={String(config.emailProvider)} onChange={e => set("emailProvider", e.target.value)}><option value="resend">Resend API (supported delivery)</option><option value="smtp">SMTP account (configuration only; delivery adapter not yet enabled)</option></select></div>
+          <div className="field"><label>Provider</label><select className="select" value={String(config.emailProvider)} onChange={e => set("emailProvider", e.target.value)}><option value="resend">Resend API</option><option value="smtp">SMTP</option></select></div>
           {input("From address (verified sender)", "emailFrom", "text", "LekvoBook <no-reply@example.com>")}
         </div>
         {input("Reply-to address (optional)", "emailReplyTo", "email", "support@example.com")}
-        {String(config.emailProvider) === "resend" ? input("Resend API key", "emailApiKey", "password", MASK) : <><div className="form-row">{input("SMTP host", "emailSmtpHost", "text", "smtp.example.com")}{input("SMTP port", "emailSmtpPort", "number", "587")}</div><div className="form-row">{input("SMTP username", "emailSmtpUser")}{input("SMTP password / app password", "emailSmtpPassword", "password", MASK)}</div>{check("Use implicit TLS (usually port 465)", "emailSmtpSecure")}<p className="hint">SMTP values can be saved, but SMTP delivery is not enabled in this build. Use Resend for active OTP delivery until an SMTP transport is added.</p></>}
+        {String(config.emailProvider) === "resend" ? input("Resend API key", "emailApiKey", "password", MASK) : <><div className="form-row">{input("SMTP host", "emailSmtpHost", "text", "smtp.example.com")}{input("SMTP port", "emailSmtpPort", "number", "587")}</div><div className="form-row">{input("SMTP username", "emailSmtpUser")}{input("SMTP password / app password", "emailSmtpPassword", "password", MASK)}</div>{check("Use implicit TLS (usually port 465)", "emailSmtpSecure")}<p className="hint">SMTP is used for platform sign-in OTP, email verification and password-reset messages. Use your provider’s app password where required. Port 465 normally uses implicit TLS; port 587 normally uses STARTTLS.</p></>}
         <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>Send test email to</label><input className="input" type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" /></div><button className="btn" disabled={busy || !testEmail} onClick={() => test("test-email", testEmail)}>Send test email</button></div>
       </div>
     </section>
