@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/secrets";
+import { deliverEmail } from "@/lib/email-delivery";
 
 export const runtime = "nodejs";
 const MASK = "••••••••";
 const KEY = "platform.communication";
-const SECRET_FIELDS = ["emailApiKey", "emailSmtpPassword", "whatsappToken", "webhookVerifyToken"] as const;
+const SECRET_FIELDS = ["emailApiKey", "emailSmtpPassword", "whatsappToken", "webhookVerifyToken", "whatsappAppSecret"] as const;
 
 async function admin() {
   const user = await getCurrentUser();
@@ -55,10 +56,20 @@ export async function PUT(request: Request) {
     }
   }
   const merged = { ...current, ...next };
-  // Email delivery implementation currently supports the Resend HTTPS API.
-  if (merged.emailProvider === "resend" && merged.emailEnabled &&
-      (!merged.emailFrom || !(merged.emailApiKey || current.emailApiKey))) {
-    return NextResponse.json({ error: "Resend requires a sender address and API key before enabling email." }, { status: 400 });
+  if (merged.emailEnabled) {
+    const provider = String(merged.emailProvider || "").toLowerCase();
+    if (!merged.emailFrom) return NextResponse.json({ error: "A platform sender address is required before enabling email." }, { status: 400 });
+    if (provider === "resend" && !(merged.emailApiKey || current.emailApiKey)) {
+      return NextResponse.json({ error: "Resend requires an API key before enabling email." }, { status: 400 });
+    }
+    if (provider === "smtp") {
+      const port = Number(merged.emailSmtpPort || 587);
+      if (!merged.emailSmtpHost || !Number.isInteger(port) || port < 1 || port > 65535 ||
+          !merged.emailSmtpUser || !(merged.emailSmtpPassword || current.emailSmtpPassword)) {
+        return NextResponse.json({ error: "SMTP requires a host, valid port, username and app password before enabling email." }, { status: 400 });
+      }
+    }
+    if (!["smtp", "resend"].includes(provider)) return NextResponse.json({ error: "Choose SMTP or Resend as the platform email provider." }, { status: 400 });
   }
   if (merged.whatsappEnabled && (!merged.whatsappPhoneId || !(merged.whatsappToken || current.whatsappToken))) {
     return NextResponse.json({ error: "WhatsApp requires a Phone ID and access token before activation." }, { status: 400 });
@@ -80,20 +91,19 @@ export async function POST(request: Request) {
   if (body.action === "test-email") {
     const to = String(body.to || "").trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return NextResponse.json({ error: "Enter a valid test recipient email." }, { status: 400 });
-    const key = config.emailApiKey ? decryptSecret(config.emailApiKey) : "";
-    if (!config.emailEnabled || String(config.emailProvider).toLowerCase() !== "resend" || !config.emailFrom || !key) {
-      return NextResponse.json({ error: "Enable Resend and save a sender address and API key first." }, { status: 400 });
-    }
-    let response: Response;
+    if (!config.emailEnabled) return NextResponse.json({ error: "Enable platform email and save the configuration first." }, { status: 400 });
     try {
-      response = await fetch("https://api.resend.com/emails", {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(10000),
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: config.emailFrom, to: [to], subject: "LekvoBook email configuration test", text: "Your LekvoBook platform email configuration is working." })
+      await deliverEmail(config, {
+        to,
+        subject: "LekvoBook platform email configuration test",
+        text: "Your LekvoBook platform email configuration is working.",
+        html: "<p>Your LekvoBook platform email configuration is working.</p>"
       });
-    } catch { return NextResponse.json({ error: "Could not reach Resend. Check network and try again." }, { status: 502 }); }
-    if (!response.ok) return NextResponse.json({ error: "Resend rejected the test email. Check the API key, sender verification and account limits." }, { status: 502 });
-    return NextResponse.json({ ok: true, message: "Test email accepted by Resend." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      return NextResponse.json({ error: message || "Email test failed. Check the provider configuration." }, { status: 502 });
+    }
+    return NextResponse.json({ ok: true, message: "Test email accepted by the configured provider." });
   }
   if (body.action === "test-whatsapp") {
     const phoneId = String(config.whatsappPhoneId || "").trim();
