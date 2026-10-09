@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Mail, MessageCircle, MessageSquare, Moon, Package, Plus, Receipt, Search, Sun, WalletCards } from "lucide-react";
+import { Download, FileText, Mail, MessageCircle, Moon, Package, Plus, Receipt, Search, Sun, WalletCards } from "lucide-react";
 import { api, useApi } from "@/lib/api";
 import { money, moneyCompact, shortDate } from "@/lib/format";
 import type { Expense, Invoice, Product, Report } from "@/lib/types";
@@ -436,9 +436,8 @@ type GeneralSettings = { currency?: string; timezone?: string; dateFormat?: stri
 type AllSettings = Record<string, ChannelSettings & GeneralSettings>;
 
 const CHANNELS = [
-  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, statements and account updates to customers", sender: "From address" },
-  { key: "notification.sms", name: "SMS", icon: <MessageSquare size={20} />, text: "Sends payment reminders and account updates by SMS", sender: "Sender ID" },
-  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends payment reminders and invoices to customers or suppliers", sender: "Phone number ID" },
+  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, statements and account updates to customers and suppliers", sender: "From address" },
+  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends approved WhatsApp messages to customers and suppliers through Meta WhatsApp Cloud API", sender: "Phone number ID" },
 ];
 
 export function SettingsView({ businessName, dark, onToggleTheme }: { businessName: string; dark: boolean; onToggleTheme: () => void }) {
@@ -607,14 +606,11 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                       </div>
                     </div>
                     <div className="field">
-                      <label htmlFor={`${c.key}-e`}>{c.key === "notification.email" || c.key === "notification.sms" ? "API endpoint (managed automatically)" : "API endpoint"}</label>
-                      <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email" || c.key === "notification.sms"} />
+                      <label htmlFor={`${c.key}-e`}>{c.key === "notification.email" ? "API endpoint (managed automatically)" : "Graph API endpoint"}</label>
+                      <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email"} />
                     </div>
                     {c.key === "notification.email" && (
-                      <span className="hint">These credentials are for company-to-customer/supplier email only. Platform sign-in OTP and system email are configured by the Super Admin.</span>
-                    )}
-                    {c.key === "notification.sms" && (
-                      <span className="hint">For Twilio, use the Account SID as API key, Auth Token as API secret, and a verified sender number. These settings apply only to this company’s customer/supplier messages.</span>
+                      <span className="hint">Configure the company’s customer and supplier email sender here. Use Resend as the provider and enter your verified From address and API key. Platform authentication email is managed separately by the Super Admin.</span>
                     )}
                     <div className="field">
                       <label htmlFor={`${c.key}-t`}>API token</label>
