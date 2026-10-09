@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const to = String(body.to || "").trim();
   const message = String(body.message || "").trim();
   const subject = String(body.subject || "Message from your business").trim();
-  if (!["email", "whatsapp"].includes(channel) || !to || !message || message.length > 4000) {
+  if (!["email", "whatsapp"].includes(channel) || !to || (!message && !(channel === "whatsapp" && body.templateName)) || message.length > 4000) {
     return NextResponse.json({ error: "Provide a supported channel, recipient and message (maximum 4000 characters)." }, { status: 400 });
   }
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       const token = config.token ? decryptSecret(String(config.token)) : "";
       const phoneId = String(config.sender || "").trim();
       if (!token || !phoneId) return NextResponse.json({ error: "WhatsApp Phone Number ID and access token are required." }, { status: 400 });
-      const version = String(config.version || "v23.0").trim();
+      const version = String(config.version || "v26.0").trim();
       if (!/^v\d+\.0$/.test(version)) return NextResponse.json({ error: "Invalid Graph API version." }, { status: 400 });
       const recipient = to.replace(/[^0-9]/g, "");
       if (!/^\d{8,15}$/.test(recipient)) return NextResponse.json({ error: "WhatsApp recipient must include country code." }, { status: 400 });
