@@ -246,6 +246,12 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
             Use a different {active === "email" ? "email" : "number"}
           </button>
         )}
+        <p className="hint" style={{ textAlign: "center", marginTop: 12 }}>
+          Trouble signing in because OTP delivery is unavailable?{" "}
+          <a href="/admin-access" style={{ color: "var(--brand-ink)", fontWeight: 650 }}>
+            Set up the first Owner or sign in with an admin password
+          </a>
+        </p>
       </form>
     </main>
   );
