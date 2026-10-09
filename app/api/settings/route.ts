@@ -24,6 +24,7 @@ function maskConfig(value: unknown) {
     token: config.token ? MASK : "",
     apiKey: config.apiKey ? MASK : "",
     apiSecret: config.apiSecret ? MASK : "",
+    smtpPassword: config.smtpPassword ? MASK : "",
   };
 }
 
@@ -89,7 +90,7 @@ export async function PUT(request: Request) {
     });
     const old = (existing?.config ?? {}) as Record<string, unknown>;
     const config: Record<string, unknown> = { ...input };
-    for (const field of ["token", "apiKey", "apiSecret"]) {
+    for (const field of ["token", "apiKey", "apiSecret", "smtpPassword"]) {
       const incoming = config[field];
       if (incoming === MASK) config[field] = old[field] ?? "";
       else if (typeof incoming === "string" && incoming.trim()) config[field] = encryptSecret(incoming.trim());
@@ -100,6 +101,28 @@ export async function PUT(request: Request) {
     delete config.enabled;
     const provider = String(input.provider ?? "").trim().toLowerCase();
     const enabled = input.enabled === true;
+    if (enabled && channel === "email") {
+      const sender = String(config.sender || "").trim();
+      if (!sender) return NextResponse.json({ error: "Enter a verified sender address before enabling company email." }, { status: 400 });
+      if (provider === "resend" && !(config.apiKey || config.token)) {
+        return NextResponse.json({ error: "Resend requires an API key before enabling company email." }, { status: 400 });
+      }
+      if (provider === "smtp") {
+        const port = Number(config.smtpPort || 587);
+        if (!config.smtpHost || !Number.isInteger(port) || port < 1 || port > 65535 || !config.smtpUser || !config.smtpPassword) {
+          return NextResponse.json({ error: "SMTP requires host, valid port, username and app password before enabling company email." }, { status: 400 });
+        }
+      }
+      if (!["smtp", "resend"].includes(provider)) return NextResponse.json({ error: "Choose SMTP or Resend for company email." }, { status: 400 });
+    }
+    if (enabled && channel === "whatsapp") {
+      if (!["meta", "whatsapp cloud api", "whatsapp-cloud-api"].includes(provider)) {
+        return NextResponse.json({ error: "Choose Meta WhatsApp Cloud API as the WhatsApp provider." }, { status: 400 });
+      }
+      if (!String(config.sender || "").trim() || !(config.token || old.token)) {
+        return NextResponse.json({ error: "WhatsApp Phone Number ID and access token are required." }, { status: 400 });
+      }
+    }
 
     if (existing) {
       await prisma.notificationProvider.update({
