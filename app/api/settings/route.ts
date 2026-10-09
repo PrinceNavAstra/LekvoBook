@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { encryptSecret } from "@/lib/secrets";
 
-const CHANNEL_KEYS = ["notification.email", "notification.sms", "notification.whatsapp"] as const;
+const CHANNEL_KEYS = ["notification.email", "notification.whatsapp"] as const;
 const MASK = "••••••••";
 
 async function owner() {
