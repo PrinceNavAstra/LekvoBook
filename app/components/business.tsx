@@ -436,9 +436,9 @@ type GeneralSettings = { currency?: string; timezone?: string; dateFormat?: stri
 type AllSettings = Record<string, ChannelSettings & GeneralSettings>;
 
 const CHANNELS = [
-  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends sign-in codes, invoices and statements", sender: "From address" },
-  { key: "notification.sms", name: "SMS", icon: <MessageSquare size={20} />, text: "Sends sign-in codes and short reminders", sender: "Sender ID" },
-  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends reminders and invoices", sender: "Phone number ID" },
+  { key: "notification.email", name: "Email", icon: <Mail size={20} />, text: "Sends invoices, statements and account updates to customers", sender: "From address" },
+  { key: "notification.sms", name: "SMS", icon: <MessageSquare size={20} />, text: "Sends payment reminders and account updates by SMS", sender: "Sender ID" },
+  { key: "notification.whatsapp", name: "WhatsApp", icon: <MessageCircle size={20} />, text: "Sends payment reminders and invoices to customers or suppliers", sender: "Phone number ID" },
 ];
 
 export function SettingsView({ businessName, dark, onToggleTheme }: { businessName: string; dark: boolean; onToggleTheme: () => void }) {
@@ -555,8 +555,8 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
       <section className="card">
         <div className="card-head">
           <div>
-            <h3>Communications</h3>
-            <p>Where codes, reminders and invoices are sent from</p>
+            <h3>Company communications</h3>
+            <p>Configure how this company contacts its customers and suppliers</p>
           </div>
         </div>
 
@@ -565,7 +565,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
             <div className="alert alert-note" role="note">
               <div>
                 <b>Only owners and admins can change these</b>
-                Ask the owner of this business to set up email, SMS and WhatsApp. Until then, "Send reminder" on a customer opens WhatsApp with the message filled in.
+                Only company owners and admins can change these settings. Until a provider is configured, customer reminders can still be opened in WhatsApp where supported.
               </div>
             </div>
           </div>
@@ -611,10 +611,10 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                       <input id={`${c.key}-e`} className="input" type="url" inputMode="url" value={v.endpoint ?? ""} onChange={(e) => update(c.key, "endpoint", e.target.value)} placeholder="https://" disabled={c.key === "notification.email" || c.key === "notification.sms"} />
                     </div>
                     {c.key === "notification.email" && (
-                      <span className="hint">Email OTP is sent through Resend's fixed HTTPS API. Set Provider to Resend, From address to a verified sender, and add the Resend API key. Custom URLs are not called.</span>
+                      <span className="hint">These credentials are for company-to-customer/supplier email only. LekvoBook sign-in OTP and platform system email are configured separately by the Super Admin.</span>
                     )}
                     {c.key === "notification.sms" && (
-                      <span className="hint">Mobile contact verification uses Twilio's fixed HTTPS API. Set Provider to Twilio, Sender to a verified Twilio number, API key to the Account SID, and API secret to the Auth Token. Custom URLs are not called.</span>
+                      <span className="hint">Use credentials issued by your SMS provider. These settings apply only to this company’s customer/supplier messages.</span>
                     )}
                     <div className="field">
                       <label htmlFor={`${c.key}-t`}>API token</label>
@@ -630,7 +630,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                         <input id={`${c.key}-x`} className="input" type="password" autoComplete="off" value={v.apiSecret ?? ""} onChange={(e) => update(c.key, "apiSecret", e.target.value)} />
                       </div>
                     </div>
-                    <span className="hint">Credentials are encrypted before they are stored. Saved values show as dots and are never sent back to this page.</span>
+                    <span className="hint">Credentials are encrypted before storage. Saved values are masked in the interface. These settings are private to this company.</span>
                   </div>
                 )}
               </div>
