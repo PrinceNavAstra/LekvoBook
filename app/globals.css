@@ -4,28 +4,28 @@
    Light is the default; dark applies via [data-theme="dark"].
    ───────────────────────────────────────────────────────────── */
 :root {
-  --paper: #f2f4f8;
-  --surface: #ffffff;
-  --raised: #f7f9fc;
-  --ink: #0f1b2d;
-  --muted: #566277;
-  --line: #e0e5ed;
-  --line-strong: #c9d1de;
+  --paper: #FBFBFA;
+  --surface: #FFFFFF;
+  --raised: #ECF7FE;
+  --ink: #123941;
+  --muted: #4F666B;
+  --line: #DCE8E9;
+  --line-strong: #B8CED1;
 
-  --brand: #0b7a63;
-  --brand-ink: #08604e;
-  --brand-soft: #e1f3ee;
+  --brand: #123941;
+  --brand-ink: #123941;
+  --brand-soft: #ECF7FE;
   --on-brand: #ffffff;
 
-  --due: #c0392f;
-  --due-soft: #fcebe9;
-  --warn: #8f630d;
-  --warn-soft: #fcf1d8;
+  --due: #CD3034;
+  --due-soft: #FBE8E8;
+  --warn: #8A5B16;
+  --warn-soft: #FFF3DB;
 
-  --rule: #dce5f1;
-  --margin: #e9a3a0;
-  --overlay: rgba(11, 18, 32, 0.5);
-  --shadow-pop: 0 18px 50px rgba(15, 27, 45, 0.18);
+  --rule: #DCE8E9;
+  --margin: #E7A5A4;
+  --overlay: rgba(18, 57, 65, 0.48);
+  --shadow-pop: 0 18px 50px rgba(18, 57, 65, 0.14);
 
   --radius: 14px;
   --radius-sm: 10px;
@@ -45,18 +45,18 @@
   --line: #243049;
   --line-strong: #33425f;
 
-  --brand: #3cc6a3;
-  --brand-ink: #7fe0c6;
-  --brand-soft: #123a33;
+  --brand: #7AA6AC;
+  --brand-ink: #B9DDE1;
+  --brand-soft: #203F45;
   --on-brand: #06231c;
 
-  --due: #ff8b82;
-  --due-soft: #3a1c20;
+  --due: #FF8588;
+  --due-soft: #482529;
   --warn: #f0c36a;
   --warn-soft: #3a2e13;
 
-  --rule: #1f2b44;
-  --margin: #7a3a3d;
+  --rule: #29464C;
+  --margin: #8F4A4D;
   --overlay: rgba(0, 0, 0, 0.62);
   --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
