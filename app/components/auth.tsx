@@ -2,79 +2,7 @@
 import { useState } from "react";
 import { AlertCircle, BookOpen, Check, LogOut } from "lucide-react";
 import { api, post } from "@/lib/api";
-import { translations, type Language } from "@/lib/i18n";
-import { Sheet, useToast } from "./ui";
-
-export type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
-  mobile: string | null;
-  preferredLanguage: string;
-  emailVerifiedAt: string | null;
-  mobileVerifiedAt: string | null;
-};
-export type SessionBusiness = {
-  id: string;
-  name: string;
-  businessType?: string | null;
-  gstNumber?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  pincode?: string | null;
-};
-
-export const LANGUAGES: { value: Language; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "gu", label: "ગુજરાતી" },
-  { value: "hi", label: "हिन्दी" },
-];
-
-const AUTH_COPY: Record<Language, Record<string, string>> = {
-  en: { login: "Sign in", signup: "Create account", name: "Full name", email: "Email address", mobile: "Mobile number", otp: "6-digit code", send: "Send code", verify: "Verify code", help: "We send a one-time code. No password to remember." },
-  gu: { login: "લૉગિન", signup: "ખાતું બનાવો", name: "પૂરું નામ", email: "ઇમેઇલ સરનામું", mobile: "મોબાઇલ નંબર", otp: "6 અંકનો કોડ", send: "કોડ મોકલો", verify: "કોડ ચકાસો", help: "અમે એક વખતનો કોડ મોકલીએ છીએ. પાસવર્ડ યાદ રાખવાની જરૂર નથી." },
-  hi: { login: "लॉगिन", signup: "खाता बनाएँ", name: "पूरा नाम", email: "ईमेल पता", mobile: "मोबाइल नंबर", otp: "6 अंकों का कोड", send: "कोड भेजें", verify: "कोड सत्यापित करें", help: "हम एक बार का कोड भेजते हैं। पासवर्ड याद रखने की ज़रूरत नहीं।" },
-};
-
-function Brand() {
-  return (
-    <div className="brand" style={{ padding: 0 }}>
-      <div className="brand-mark">
-        <BookOpen size={20} />
-      </div>
-      <span className="brand-name">Lekvo Book</span>
-    </div>
-  );
-}
-
-function Notice({ tone = "error", children }: { tone?: "error" | "note"; children: React.ReactNode }) {
-  return (
-    <div className={`alert ${tone === "note" ? "alert-note" : ""}`} role={tone === "error" ? "alert" : "status"}>
-      <AlertCircle size={18} style={{ flex: "none", marginTop: 1 }} />
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function LanguageSelect({ value, onChange, label = "Language" }: { value: Language; onChange: (l: Language) => void; label?: string }) {
-  return (
-    <select className="select" style={{ width: "auto", minHeight: 40 }} aria-label={label} value={value} onChange={(e) => onChange(e.target.value as Language)}>
-      {LANGUAGES.map((l) => (
-        <option key={l.value} value={l.value}>
-          {l.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-/* ── Sign in / create account ─────────────────────────────── */
-"use client";
 import { authClient } from "@/lib/auth-client";
-import { useState } from "react";
-import { AlertCircle, BookOpen, Check, LogOut } from "lucide-react";
-import { api, post } from "@/lib/api";
 import { translations, type Language } from "@/lib/i18n";
 import { Sheet, useToast } from "./ui";
 
