@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/secrets";
 
@@ -21,6 +22,18 @@ export async function GET(request: Request) {
 
 // Event ingestion is intentionally not used to trigger actions yet. Verify the endpoint
 // and keep event content out of logs until app-secret signature validation is configured.
-export async function POST() {
+export async function POST(request: Request) {
+  const signature = request.headers.get("x-hub-signature-256") || "";
+  const rawBody = await request.text();
+  const appSecret = config.whatsappAppSecret ? decryptSecret(String(config.whatsappAppSecret)) : "";
+  if (!appSecret || !signature.startsWith("sha256=")) {
+    return NextResponse.json({ error: "Webhook signature validation is not configured." }, { status: 401 });
+  }
+  const expectedSignature = "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expectedSignature);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
+  }
   return NextResponse.json({ received: true });
 }
