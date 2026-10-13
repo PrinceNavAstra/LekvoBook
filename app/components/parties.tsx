@@ -26,16 +26,13 @@ export function PartiesView({
   const url = kind === "customer" ? "/api/v1/customers" : "/api/v1/suppliers";
   const { data, error, loading, reload } = useApi<Party[]>(withVersion(url, version));
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "due" | "clear">("all");
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (data ?? []).filter((p) => {
-      if (filter === "due" && p.balance <= 0) return false;
-      if (filter === "clear" && p.balance !== 0) return false;
       return !term || p.name.toLowerCase().includes(term) || (p.mobile ?? "").includes(term);
     });
-  }, [data, q, filter]);
+  }, [data, q]);
 
   const outstanding = (data ?? []).filter((p) => p.balance > 0).reduce((s, p) => s + p.balance, 0);
   const noun = kind === "customer" ? "customer" : "supplier";
@@ -54,18 +51,6 @@ export function PartiesView({
         </div>
         <button className="btn btn-primary fab" onClick={onAdd}>
           <Plus size={18} /> Add {noun}
-        </button>
-      </div>
-
-      <div className="chips" role="group" aria-label="Filter">
-        <button className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
-          All{data ? ` (${data.length})` : ""}
-        </button>
-        <button className="chip" aria-pressed={filter === "due"} onClick={() => setFilter("due")}>
-          {kind === "customer" ? "Owe you" : "You owe"}
-        </button>
-        <button className="chip" aria-pressed={filter === "clear"} onClick={() => setFilter("clear")}>
-          Settled
         </button>
       </div>
 
