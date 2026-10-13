@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/secrets";
-import { deliverEmail } from "@/lib/email-delivery";
+import { deliverEmail, verifyEmailConnection } from "@/lib/email-delivery";
 
 export const runtime = "nodejs";
 const MASK = "••••••••";
@@ -91,10 +91,27 @@ export async function POST(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON." }, { status: 400 }); }
   const row = await prisma.applicationSetting.findUnique({ where: { key: KEY } });
   const config: any = row?.value || {};
+  if (body.action === "verify-email") {
+    // Uses what is typed in the form (not yet saved); blank or masked secrets fall back to the saved ones.
+    const draft: Record<string, unknown> = { ...config };
+    const fields = ["emailProvider", "emailFrom", "emailApiKey", "emailSmtpHost", "emailSmtpPort", "emailSmtpSecure", "emailSmtpUser", "emailSmtpPassword"];
+    for (const field of fields) {
+      const incoming = body.config?.[field];
+      if (incoming === undefined) continue;
+      if (SECRET_FIELDS.includes(field as any) && (incoming === MASK || incoming === "")) continue;
+      draft[field] = incoming;
+    }
+    try {
+      const message = await verifyEmailConnection(draft);
+      return NextResponse.json({ ok: true, message });
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Could not verify the email account." }, { status: 502 });
+    }
+  }
   if (body.action === "test-email") {
     const to = String(body.to || "").trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return NextResponse.json({ error: "Enter a valid test recipient email." }, { status: 400 });
-    if (!config.emailEnabled) return NextResponse.json({ error: "Enable platform email and save the configuration first." }, { status: 400 });
+    if (!config.emailProvider) return NextResponse.json({ error: "Save the email configuration first, then send the test." }, { status: 400 });
     try {
       await deliverEmail(config, {
         to,
@@ -106,7 +123,12 @@ export async function POST(request: Request) {
       const message = error instanceof Error ? error.message : "";
       return NextResponse.json({ error: message || "Email test failed. Check the provider configuration." }, { status: 502 });
     }
-    return NextResponse.json({ ok: true, message: "Test email accepted by the configured provider." });
+    return NextResponse.json({
+      ok: true,
+      message: config.emailEnabled
+        ? "Test email accepted by the mail provider. Check the inbox (and spam)."
+        : "Test email accepted, but platform email is still switched off, so sign-in codes will not be sent. Tick “Enable platform email” and press Save.",
+    });
   }
   if (body.action === "test-whatsapp") {
     const phoneId = String(config.whatsappPhoneId || "").trim();

@@ -2213,3 +2213,19 @@ button:disabled,
     padding-bottom: 20px;
   }
 }
+
+/* Super Admin mail card: Authenticate and Save sit together on the right. */
+.mail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.mail-actions .btn {
+  min-width: 140px;
+}
+@media (max-width: 520px) {
+  .mail-actions .btn {
+    flex: 1;
+  }
+}

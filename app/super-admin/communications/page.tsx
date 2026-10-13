@@ -19,6 +19,9 @@ export default function SuperAdminCommunicationsPage() {
   const [error, setError] = useState("");
   const [testEmail, setTestEmail] = useState("");
   const [testWhatsAppTo, setTestWhatsAppTo] = useState("");
+  // Result of the last mail action, shown inside the mail card so it is seen next to the buttons.
+  const [mail, setMail] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [mailBusy, setMailBusy] = useState<"" | "save" | "verify" | "test">("");
 
   useEffect(() => {
     fetch("/api/super-admin/config").then(async r => {
@@ -43,6 +46,27 @@ export default function SuperAdminCommunicationsPage() {
       setNotice("Configuration saved securely.");
     } catch(e: any) { setError(e.message || "Could not save settings."); }
     finally { setBusy(false); }
+  }
+  const EMAIL_FIELDS = ["emailEnabled", "emailProvider", "emailFrom", "emailReplyTo", "emailApiKey", "emailSmtpHost", "emailSmtpPort", "emailSmtpSecure", "emailSmtpUser", "emailSmtpPassword"];
+  async function mailAction(kind: "save" | "verify" | "test") {
+    setMailBusy(kind); setMail(null); setError(""); setNotice("");
+    try {
+      if (kind === "save") {
+        const data = await request("/api/super-admin/config", "PUT", config);
+        setConfig(old => ({ ...old, ...data.config }));
+        setMail({ kind: "ok", text: config.emailEnabled ? "Saved. Platform email is on." : "Saved. Platform email is still switched off — tick “Enable platform email” to send sign-in codes." });
+      } else if (kind === "verify") {
+        const draft = Object.fromEntries(EMAIL_FIELDS.map(k => [k, config[k]]));
+        const data = await request("/api/super-admin/config", "POST", { action: "verify-email", config: draft });
+        setMail({ kind: "ok", text: `Authenticated. ${data.message}` });
+      } else {
+        const data = await request("/api/super-admin/config", "POST", { action: "test-email", to: testEmail });
+        setMail({ kind: "ok", text: data.message });
+      }
+    } catch (e: any) {
+      const label = kind === "save" ? "Could not save" : kind === "verify" ? "Authentication failed" : "Test email failed";
+      setMail({ kind: "error", text: `${label}: ${e.message || "Request failed."}` });
+    } finally { setMailBusy(""); }
   }
   async function test(action: string, to?: string) {
     setBusy(true); setError(""); setNotice("");
@@ -69,7 +93,14 @@ export default function SuperAdminCommunicationsPage() {
         </div>
         {input("Reply-to address (optional)", "emailReplyTo", "email", "support@example.com")}
         {String(config.emailProvider) === "resend" ? input("Resend API key", "emailApiKey", "password", MASK) : <><div className="form-row">{input("SMTP host", "emailSmtpHost", "text", "smtp.example.com")}{input("SMTP port", "emailSmtpPort", "number", "587")}</div><div className="form-row">{input("SMTP username", "emailSmtpUser")}{input("SMTP password / app password", "emailSmtpPassword", "password", MASK)}</div>{check("Use implicit TLS (usually port 465)", "emailSmtpSecure")}<p className="hint">SMTP is used for platform sign-in OTP, email verification and password-reset messages. Use your provider’s app password where required. Port 465 normally uses implicit TLS; port 587 normally uses STARTTLS.</p></>}
-        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>Send test email to</label><input className="input" type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" /></div><button className="btn" disabled={busy || !testEmail} onClick={() => test("test-email", testEmail)}>Send test email</button></div>
+        {mail && <div className={mail.kind === "ok" ? "alert alert-note" : "alert"} role={mail.kind === "ok" ? "status" : "alert"}>{mail.text}</div>}
+        <div className="mail-actions">
+          <button type="button" className="btn" disabled={!!mailBusy} onClick={() => mailAction("verify")}>{mailBusy === "verify" ? "Authenticating…" : "Authenticate"}</button>
+          <button type="button" className="btn btn-primary" disabled={!!mailBusy} onClick={() => mailAction("save")}>{mailBusy === "save" ? "Saving…" : "Save"}</button>
+        </div>
+        <p className="hint">Authenticate signs in to the mail account with the details above, without sending anything or saving. Press Save to keep them.</p>
+        <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>Send test email to</label><input className="input" type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" /></div><button type="button" className="btn" disabled={!!mailBusy || !testEmail} onClick={() => mailAction("test")}>{mailBusy === "test" ? "Sending…" : "Send test email"}</button></div>
+        <p className="hint">The test uses the saved settings, so press Save first.</p>
       </div>
     </section>
     <section className="card">
@@ -90,7 +121,7 @@ export default function SuperAdminCommunicationsPage() {
         <p className="hint">Credential test checks the token and Phone ID against Meta Graph API. Sending an actual WhatsApp message is a separate test and requires a recipient, permissions, and an approved template where required.</p>
       </div>
     </section>
-    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save configuration"}</button></div>
+    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save all settings"}</button></div>
     <p className="hint" style={{ marginTop: 18 }}>Access is restricted by the server-side SUPER_ADMIN_EMAILS environment variable. Set it to a comma-separated allowlist of platform administrator emails.</p>
   </main>;
 }
