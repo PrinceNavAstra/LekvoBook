@@ -66,7 +66,10 @@ export function LedgerPaper({
             const bal = balances.get(t.id);
             const sideLabel = side === "gave" ? "You gave" : "You got";
             const title = showParty && party ? party : sideLabel;
-            const detail = [showParty ? sideLabel : null, t.notes].filter(Boolean).join(" · ");
+            const detailParts: string[] = [];
+            if (showParty) detailParts.push(sideLabel);
+            if (t.notes) detailParts.push(t.notes);
+            const detail = detailParts.join(" · ");
             return (
               <div className="entry" key={t.id}>
                 <div className="entry-body">
