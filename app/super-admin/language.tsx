@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
 
 export type AdminLanguage = "en" | "gu" | "hi";
 const copy: Record<AdminLanguage, Record<string, string>> = {
