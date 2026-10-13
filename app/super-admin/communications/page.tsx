@@ -56,7 +56,7 @@ export default function SuperAdminCommunicationsPage() {
       if (kind === "save") {
         const data = await request("/api/super-admin/config", "PUT", config);
         setConfig(old => ({ ...old, ...data.config }));
-        setMail({ kind: "ok", text: config.emailEnabled ? "{t("save")}d. Platform email is on." : "{t("save")}d. Platform email is still switched off — tick “{t("enableEmail")}” to send sign-in codes." });
+        setMail({ kind: "ok", text: config.emailEnabled ? t("emailOn") : t("emailOff") });
       } else if (kind === "verify") {
         const draft = Object.fromEntries(EMAIL_FIELDS.map(k => [k, config[k]]));
         const data = await request("/api/super-admin/config", "POST", { action: "verify-email", config: draft });
