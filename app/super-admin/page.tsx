@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useSuperAdminLanguage } from "./language";
 
 const cardStyle = {
   display: "block",
