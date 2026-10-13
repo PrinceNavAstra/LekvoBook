@@ -4,17 +4,17 @@ import type { Txn } from "@/lib/types";
 
 const TYPE_LABEL: Record<Txn["type"], string> = {
   OPENING: "Opening balance",
-  CREDIT: "Credit given",
+  CREDIT: "You gave",
   PAYMENT: "Payment",
-  SALE: "Sale",
-  PURCHASE: "Purchase",
+  SALE: "You gave",
+  PURCHASE: "You got",
   ADJUSTMENT: "Adjustment",
 };
 
 /**
  * Which column an entry belongs in, the way Khatabook shows it:
  * "You gave" (red) is money or goods that left you, "You got" (green) is what came back to you.
- * Customers: credit and sales are given, payments are got. Suppliers: purchases are got, payments are given.
+ * User-facing labels are always “You gave” and “You got”; legacy transaction types remain internal.
  */
 export function entrySide(t: Pick<Txn, "direction" | "supplier">): "gave" | "got" {
   const raise = t.direction === "CREDIT";
@@ -73,11 +73,11 @@ export function LedgerPaper({
             const side = entrySide(t);
             const party = t.customer?.name ?? t.supplier?.name;
             const bal = balances.get(t.id);
-            const detail = [showParty ? TYPE_LABEL[t.type] : null, t.notes].filter(Boolean).join(" · ");
+            const detail = [showParty ? (side === "gave" ? "You gave" : "You got"), t.notes].filter(Boolean).join(" · ");
             return (
               <div className="entry" key={t.id}>
                 <div className="entry-body">
-                  <div className="entry-title">{showParty && party ? party : TYPE_LABEL[t.type]}</div>
+                  <div className="entry-title">{showParty && party ? party : side === "gave" ? "You gave" : "You got"}</div>
                   <div className="entry-note">
                     <span className="num">{shortDate(t.transactionDate)}</span>
                     {detail ? ` · ${detail}` : ""}
