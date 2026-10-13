@@ -45,11 +45,10 @@ export type PartyKind = "customer" | "supplier";
 const CUSTOMER_KINDS: { value: EntryKind; label: string; tone: string }[] = [
   { value: "CREDIT", label: "You gave", tone: "tone-due" },
   { value: "PAYMENT", label: "You got", tone: "tone-ok" },
-  { value: "SALE", label: "Sale", tone: "tone-due" },
 ];
 const SUPPLIER_KINDS: { value: EntryKind; label: string; tone: string }[] = [
-  { value: "PURCHASE", label: "You got (purchase)", tone: "tone-ok" },
-  { value: "PAYMENT", label: "You gave (payment)", tone: "tone-due" },
+  { value: "PURCHASE", label: "You got", tone: "tone-ok" },
+  { value: "PAYMENT", label: "You gave", tone: "tone-due" },
 ];
 
 export function EntryForm({
@@ -79,7 +78,7 @@ export function EntryForm({
   const switchParty = (next: PartyKind) => {
     setPartyKind(next);
     setPartyId("");
-    setKind(next === "customer" ? "CREDIT" : "PURCHASE");
+    setKind(next === "customer" ? "CREDIT" : "PAYMENT");
   };
 
   const submit = (e: React.FormEvent) => {
