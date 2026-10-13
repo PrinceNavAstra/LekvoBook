@@ -255,13 +255,7 @@ export function ExpensesView({ version, onAdd }: { version: number; onAdd: () =>
   );
 }
 
-/* ── Reports ──────────────────────────────────────────────── */
-function reportCsv(r: Report) {
-  const head = ["Month", "Sales", "Purchases", "Expenses", "Received", "Paid"];
-  const rows = r.months.map((m) => [m.label, m.sales, m.purchases, m.expenses, m.received, m.paid]);
-  return [head, ...rows].map((row) => row.join(",")).join("\n");
-}
-
+/* ── Simple reports ───────────────────────────────────────── */
 export function ReportsView({ version }: { version: number }) {
   const { data, error, loading, reload } = useApi<Report>(withVersion("/api/v1/reports", version));
 
@@ -269,15 +263,19 @@ export function ReportsView({ version }: { version: number }) {
   if (!data || loading) {
     return (
       <div className="card" aria-busy="true">
-        <ListSkeleton rows={6} />
+        <ListSkeleton rows={4} />
       </div>
     );
   }
 
   const t = data.totals;
-  const topCategory = data.expenseByCategory[0]?.amount || 1;
   const download = () => {
-    const blob = new Blob([reportCsv(data)], { type: "text/csv;charset=utf-8" });
+    const rows = [
+      ["Month", "Sales", "Purchases", "Expenses", "Profit / Loss"],
+      ...data.months.map((m) => [m.label, m.sales, m.purchases, m.expenses, m.sales - m.purchases - m.expenses]),
+    ];
+    const csv = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "lekvo-book-report.csv";
@@ -288,13 +286,13 @@ export function ReportsView({ version }: { version: number }) {
   return (
     <>
       <div className="toolbar">
-        <p className="tone-muted">Last 6 months, including this one.</p>
+        <p className="tone-muted">A simple overview of the last 6 months.</p>
         <button className="btn" onClick={download}>
-          <Download size={18} /> Download CSV
+          <Download size={18} /> Download report
         </button>
       </div>
 
-      <section className="kpis" aria-label="Totals">
+      <section className="kpis" aria-label="Business summary">
         <div className="card kpi">
           <div className="kpi-label">Sales</div>
           <div className="kpi-value num">{money(t.sales)}</div>
@@ -316,10 +314,8 @@ export function ReportsView({ version }: { version: number }) {
       <section className="card">
         <div className="card-head">
           <div>
-            <h3>Month by month</h3>
-            <p>
-              Cash in {moneyCompact(t.cashIn)} · cash out {moneyCompact(t.cashOut)}
-            </p>
+            <h3>Monthly summary</h3>
+            <p>Sales minus purchases and expenses gives an indicative result.</p>
           </div>
         </div>
         <div className="table-wrap">
@@ -330,102 +326,26 @@ export function ReportsView({ version }: { version: number }) {
                 <th scope="col">Sales</th>
                 <th scope="col">Purchases</th>
                 <th scope="col">Expenses</th>
-                <th scope="col">Received</th>
-                <th scope="col">Paid</th>
+                <th scope="col">Profit / Loss</th>
               </tr>
             </thead>
             <tbody>
-              {data.months.map((m) => (
-                <tr key={m.key}>
-                  <th scope="row" style={{ fontWeight: 650 }}>
-                    {m.label}
-                  </th>
-                  <td>{money(m.sales)}</td>
-                  <td>{money(m.purchases)}</td>
-                  <td>{money(m.expenses)}</td>
-                  <td>{money(m.received)}</td>
-                  <td>{money(m.paid)}</td>
-                </tr>
-              ))}
+              {data.months.map((m) => {
+                const result = m.sales - m.purchases - m.expenses;
+                return (
+                  <tr key={m.key}>
+                    <th scope="row" style={{ fontWeight: 650 }}>{m.label}</th>
+                    <td>{money(m.sales)}</td>
+                    <td>{money(m.purchases)}</td>
+                    <td>{money(m.expenses)}</td>
+                    <td className={result >= 0 ? "tone-ok" : "tone-due"}>{money(Math.abs(result))}{result < 0 ? " loss" : ""}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </section>
-
-      <div className="cols cols-even">
-        <section className="card">
-          <div className="card-head">
-            <div>
-              <h3>Where the money went</h3>
-              <p>Expenses by category</p>
-            </div>
-          </div>
-          {data.expenseByCategory.length ? (
-            <div className="list">
-              {data.expenseByCategory.map((c) => (
-                <div className="row" key={c.category} style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                    <span className="row-title">{c.category}</span>
-                    <span className="amount num">{money(c.amount)}</span>
-                  </div>
-                  <div className="meter" aria-hidden="true">
-                    <span style={{ width: `${Math.max((c.amount / topCategory) * 100, 3)}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Empty icon={<WalletCards size={24} />} title="No expenses recorded" text="Add expenses to see where your money goes." />
-          )}
-        </section>
-
-        <div className="cols">
-          <section className="card">
-            <div className="card-head">
-              <div>
-                <h3>Customers who owe you</h3>
-                <p>Largest balances first</p>
-              </div>
-            </div>
-            {data.receivables.length ? (
-              <div className="list">
-                {data.receivables.map((r) => (
-                  <div className="row" key={r.id}>
-                    <div className="row-main">
-                      <div className="row-title">{r.name}</div>
-                    </div>
-                    <span className="amount num tone-get">{money(r.balance)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty icon={<Receipt size={24} />} title="Nobody owes you" text="Customer balances will be listed here." />
-            )}
-          </section>
-          <section className="card">
-            <div className="card-head">
-              <div>
-                <h3>Suppliers you owe</h3>
-                <p>Largest balances first</p>
-              </div>
-            </div>
-            {data.payables.length ? (
-              <div className="list">
-                {data.payables.map((r) => (
-                  <div className="row" key={r.id}>
-                    <div className="row-main">
-                      <div className="row-title">{r.name}</div>
-                    </div>
-                    <span className="amount num tone-give">{money(r.balance)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty icon={<Receipt size={24} />} title="You owe nobody" text="Supplier balances will be listed here." />
-            )}
-          </section>
-        </div>
-      </div>
     </>
   );
 }
