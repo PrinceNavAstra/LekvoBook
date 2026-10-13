@@ -96,7 +96,13 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 export function SuperAdminLanguageProvider({ initialLanguage, children }: { initialLanguage: string; children: ReactNode }) {
   const [language, setLanguageState] = useState<AdminLanguage>(initialLanguage === "gu" || initialLanguage === "hi" ? initialLanguage : "en");
   const [ready, setReady] = useState(false);
-  useEffect(() => { setReady(true); }, []);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("lekvo_language");
+      if (saved === "en" || saved === "gu" || saved === "hi") setLanguageState(saved);
+    } catch {}
+    setReady(true);
+  }, []);
   async function setLanguage(next: AdminLanguage) {
     setLanguageState(next);
     try { localStorage.setItem("lekvo_language", next); } catch {}
