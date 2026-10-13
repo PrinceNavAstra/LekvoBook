@@ -6,7 +6,7 @@ import { initials, longDate, money } from "@/lib/format";
 import type { Party, Txn } from "@/lib/types";
 import type { EntryKind, PartyKind } from "./forms";
 import { Empty, ErrorState, ListSkeleton, useToast } from "./ui";
-import { LedgerPaper } from "./ledger";
+import { entrySide, LedgerPaper } from "./ledger";
 
 /** Adds a changing query param so a refresh in the parent re-fetches the list. */
 const withVersion = (url: string, version: number) => `${url}${url.includes("?") ? "&" : "?"}v=${version}`;
@@ -244,22 +244,22 @@ export function PartyProfile({
 /* ── Full ledger ──────────────────────────────────────────── */
 const LEDGER_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "All" },
-  { value: "CREDIT", label: "Credit given" },
-  { value: "PAYMENT", label: "Payments" },
-  { value: "SALE", label: "Sales" },
-  { value: "PURCHASE", label: "Purchases" },
+  { value: "gave", label: "You gave" },
+  { value: "got", label: "You got" },
 ];
 
 export function LedgerView({ version, onAdd }: { version: number; onAdd: () => void }) {
   const [type, setType] = useState("");
   const [q, setQ] = useState("");
-  const { data, error, loading, reload } = useApi<Txn[]>(withVersion(`/api/v1/transactions${type ? `?type=${type}` : ""}`, version));
+  const { data, error, loading, reload } = useApi<Txn[]>(withVersion("/api/v1/transactions", version));
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return data ?? [];
-    return (data ?? []).filter((t) => (t.customer?.name ?? t.supplier?.name ?? "").toLowerCase().includes(term) || (t.notes ?? "").toLowerCase().includes(term));
-  }, [data, q]);
+    return (data ?? []).filter((t) => {
+      if (type && entrySide(t) !== type) return false;
+      return !term || (t.customer?.name ?? t.supplier?.name ?? "").toLowerCase().includes(term) || (t.notes ?? "").toLowerCase().includes(term);
+    });
+  }, [data, q, type]);
 
   if (error && !data) return <ErrorState message={error} onRetry={reload} />;
 
@@ -292,7 +292,7 @@ export function LedgerView({ version, onAdd }: { version: number; onAdd: () => v
           <Empty
             icon={<BookOpen size={24} />}
             title={q || type ? "No matching entries" : "Your ledger is empty"}
-            text={q || type ? "Try a different search or filter." : "Every credit, payment and sale you record is kept here, in order."}
+            text={q || type ? "Try a different search or filter." : "Every entry you record is kept here, in order."}
             action={
               !q && !type ? (
                 <button className="btn btn-primary" onClick={onAdd}>
