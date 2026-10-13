@@ -2,15 +2,6 @@
 import { dayLabel, money, shortDate } from "@/lib/format";
 import type { Txn } from "@/lib/types";
 
-const TYPE_LABEL: Record<Txn["type"], string> = {
-  OPENING: "Opening balance",
-  CREDIT: "You gave",
-  PAYMENT: "Payment",
-  SALE: "You gave",
-  PURCHASE: "You got",
-  ADJUSTMENT: "Adjustment",
-};
-
 /**
  * Which column an entry belongs in, the way Khatabook shows it:
  * "You gave" (red) is money or goods that left you, "You got" (green) is what came back to you.
