@@ -83,7 +83,7 @@ export default function SuperAdminCommunicationsPage() {
     <header style={{ marginBottom: 20 }}><h1>Super Admin · Communications</h1><p>Platform-wide authentication email and Meta app configuration. Company owners cannot view or edit platform email credentials.</p></header>
     {error && <div className="alert" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
     {notice && <div className="alert alert-note" role="status" style={{ marginBottom: 16 }}>{notice}</div>}
-    <section className="card" style={{ marginBottom: 20 }}>
+    <section id="platform-email" className="card" style={{ marginBottom: 20 }}>
       <div className="card-head"><div><h2>Platform Email Account</h2><p>Used for sign-in OTPs, email verification and platform system messages.</p></div></div>
       <div className="form" style={{ padding: 18 }}>
         {check("Enable platform email", "emailEnabled")}
@@ -103,7 +103,7 @@ export default function SuperAdminCommunicationsPage() {
         <p className="hint">The test uses the saved settings, so press Save first.</p>
       </div>
     </section>
-    <section className="card">
+    <section id="whatsapp-setup" className="card">
       <div className="card-head"><div><h2>WhatsApp Account</h2><p>Meta WhatsApp Cloud API account configuration.</p></div></div>
       <div className="form" style={{ padding: 18 }}>
         {check("Activate outgoing WhatsApp", "whatsappEnabled")}
