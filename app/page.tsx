@@ -56,7 +56,7 @@ type SheetState =
   | { type: "invoice" };
 
 const ENTRY_TITLE = (kind: EntryKind, party: PartyKind) =>
-  kind === "CREDIT" ? "You gave" : kind === "SALE" ? "Record a sale" : kind === "PURCHASE" ? "You got (purchase)" : party === "customer" ? "You got" : "You gave (payment)";
+  kind === "CREDIT" ? "You gave" : kind === "PURCHASE" ? "You got" : kind === "PAYMENT" ? (party === "customer" ? "You got" : "You gave") : "Record entry";
 
 type Session = { user: SessionUser; business: SessionBusiness | null };
 
@@ -278,21 +278,14 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
                 <ArrowUpRight size={20} />
               </span>
               <b>You gave</b>
-              <span>Goods or money you gave</span>
+              <span>Money you gave to a customer or supplier</span>
             </button>
             <button className="quick" onClick={() => openEntry("PAYMENT")}>
               <span className="quick-icon ic-ok">
                 <ArrowDownLeft size={20} />
               </span>
               <b>You got</b>
-              <span>Money you got back</span>
-            </button>
-            <button className="quick" onClick={() => openEntry("PURCHASE", "supplier")}>
-              <span className="quick-icon ic-warn">
-                <Truck size={20} />
-              </span>
-              <b>Purchase</b>
-              <span>Bought from a supplier</span>
+              <span>Money you received from a customer or supplier</span>
             </button>
           </div>
         </Sheet>
