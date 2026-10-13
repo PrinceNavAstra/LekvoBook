@@ -34,12 +34,14 @@ const TABS = [
   { name: "Reports", icon: BarChart3 },
   { name: "Settings", icon: Settings },
 ] as const;
+// Phone bottom bar, as in Khatabook: Home, Customers, Suppliers, Reports and a More menu.
+const BOTTOM_TABS: TabName[] = ["Dashboard", "Customers", "Suppliers", "Reports"];
 type TabName = (typeof TABS)[number]["name"];
 
 // Only these six core areas are shown in primary navigation.
 // Legacy inventory, invoices, and expenses data/routes are retained for safety,
 // but are no longer promoted as core features in the user interface.
-const MORE_TABS: TabName[] = ["Customers", "Suppliers", "Settings"];
+const MORE_TABS: TabName[] = ["Ledger", "Settings"];
 
 type SheetState =
   | { type: "add" }
@@ -54,7 +56,7 @@ type SheetState =
   | { type: "invoice" };
 
 const ENTRY_TITLE = (kind: EntryKind, party: PartyKind) =>
-  kind === "CREDIT" ? "Give credit" : kind === "SALE" ? "Record a sale" : kind === "PURCHASE" ? "Record a purchase" : party === "customer" ? "Receive payment" : "Payment made";
+  kind === "CREDIT" ? "You gave" : kind === "SALE" ? "Record a sale" : kind === "PURCHASE" ? "You got (purchase)" : party === "customer" ? "You got" : "You gave (payment)";
 
 type Session = { user: SessionUser; business: SessionBusiness | null };
 
@@ -126,7 +128,7 @@ function Root() {
 
 function App({ session, language, setLanguage, refreshSession, onSignedOut }: { session: Session; language: Language; setLanguage: (l: Language) => void; refreshSession: () => void; onSignedOut: () => void }) {
   const t = translations[language];
-  const label = (name: string) => name === "Dashboard" ? "Home" : name === "Ledger" ? "Khata / Transactions" : t[name.toLowerCase()] ?? name;
+  const label = (name: string) => name === "Dashboard" ? "Home" : name === "Ledger" ? "Transactions" : t[name.toLowerCase()] ?? name;
   const [tab, setTab] = useState<TabName>("Dashboard");
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [version, setVersion] = useState(0);
@@ -211,7 +213,10 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
             <div className="mobile-brand">
               <BookOpen size={18} />
             </div>
-            <h1>{label(tab)}</h1>
+            <div className="topbar-text">
+              <h1>{label(tab)}</h1>
+              <small className="topbar-sub">{businessName}</small>
+            </div>
           </div>
           <div className="topbar-actions">
             <button className="btn btn-icon" onClick={toggleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
@@ -248,23 +253,18 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
       {/* Phone navigation: Home, Ledger, +, Reports, More */}
       <nav className="bottom-nav" aria-label="Main">
         <div className="bottom-nav-inner">
-          <button className="tab" aria-current={tab === "Dashboard" ? "page" : undefined} onClick={() => go("Dashboard")}>
-            <HomeIcon size={22} />
-            Home
-          </button>
-          <button className="tab" aria-current={tab === "Ledger" ? "page" : undefined} onClick={() => go("Ledger")}>
-            <BookOpen size={22} />
-            {label("Ledger")}
-          </button>
-          <button className="tab-add" onClick={() => setSheet({ type: "add" })} aria-label="Add new">
-            <Plus size={28} />
-          </button>
-          <button className="tab" aria-current={tab === "Reports" ? "page" : undefined} onClick={() => go("Reports")}>
-            <BarChart3 size={22} />
-            {label("Reports")}
-          </button>
+          {TABS.filter((x) => BOTTOM_TABS.includes(x.name)).map(({ name, icon: Icon }) => (
+            <button key={name} className="tab" aria-current={tab === name ? "page" : undefined} onClick={() => go(name)}>
+              <span className="tab-icon">
+                <Icon size={22} />
+              </span>
+              {label(name)}
+            </button>
+          ))}
           <button className="tab" aria-current={MORE_TABS.includes(tab) ? "page" : undefined} onClick={() => setSheet({ type: "more" })}>
-            <MoreHorizontal size={22} />
+            <span className="tab-icon">
+              <MoreHorizontal size={22} />
+            </span>
             More
           </button>
         </div>
@@ -277,14 +277,14 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
               <span className="quick-icon ic-due">
                 <ArrowUpRight size={20} />
               </span>
-              <b>Give credit</b>
+              <b>You gave</b>
               <span>Goods or money you gave</span>
             </button>
             <button className="quick" onClick={() => openEntry("PAYMENT")}>
               <span className="quick-icon ic-ok">
                 <ArrowDownLeft size={20} />
               </span>
-              <b>Receive payment</b>
+              <b>You got</b>
               <span>Money you got back</span>
             </button>
             <button className="quick" onClick={() => openEntry("PURCHASE", "supplier")}>

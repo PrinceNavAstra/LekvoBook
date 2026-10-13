@@ -4,7 +4,7 @@ import { AlertCircle, BookOpen, Check, LogOut } from "lucide-react";
 import { api, post } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { translations, type Language } from "@/lib/i18n";
-import { Sheet, useToast } from "./ui";
+import { Select, Sheet, useToast } from "./ui";
 
 export type SessionUser = {
   id: string;
@@ -60,13 +60,9 @@ function Notice({ tone = "error", children }: { tone?: "error" | "note"; childre
 
 function LanguageSelect({ value, onChange, label = "Language" }: { value: Language; onChange: (l: Language) => void; label?: string }) {
   return (
-    <select className="select" style={{ width: "auto", minHeight: 40 }} aria-label={label} value={value} onChange={(e) => onChange(e.target.value as Language)}>
-      {LANGUAGES.map((l) => (
-        <option key={l.value} value={l.value}>
-          {l.label}
-        </option>
-      ))}
-    </select>
+    <div style={{ minWidth: 132 }}>
+      <Select compact ariaLabel={label} value={value} onChange={(v) => onChange(v as Language)} options={LANGUAGES.map((l) => ({ value: l.value, label: l.label }))} />
+    </div>
   );
 }
 
@@ -508,13 +504,7 @@ export function ProfileSheet({
           </div>
           <div className="field">
             <label htmlFor="pf-lang">Language</label>
-            <select id="pf-lang" className="select" value={lang} onChange={(e) => setLang(e.target.value as Language)}>
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
+            <Select id="pf-lang" value={lang} onChange={(v) => setLang(v as Language)} options={LANGUAGES.map((l) => ({ value: l.value, label: l.label }))} />
           </div>
         </div>
 

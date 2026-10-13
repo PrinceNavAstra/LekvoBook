@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Select } from "@/app/components/ui";
 
 type Config = Record<string, string | boolean>;
 const MASK = "••••••••";
@@ -63,7 +64,7 @@ export default function SuperAdminCommunicationsPage() {
       <div className="form" style={{ padding: 18 }}>
         {check("Enable platform email", "emailEnabled")}
         <div className="form-row">
-          <div className="field"><label>Provider</label><select className="select" value={String(config.emailProvider)} onChange={e => set("emailProvider", e.target.value)}><option value="resend">Resend API</option><option value="smtp">SMTP</option></select></div>
+          <div className="field"><label>Provider</label><Select value={String(config.emailProvider)} onChange={v => set("emailProvider", v)} options={[{ value: "resend", label: "Resend API" }, { value: "smtp", label: "SMTP" }]} /></div>
           {input("From address (verified sender)", "emailFrom", "text", "LekvoBook <no-reply@example.com>")}
         </div>
         {input("Reply-to address (optional)", "emailReplyTo", "email", "support@example.com")}

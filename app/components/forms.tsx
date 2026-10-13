@@ -4,7 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { post, useApi } from "@/lib/api";
 import { money, todayInput } from "@/lib/format";
 import type { Party, Product } from "@/lib/types";
-import { useToast } from "./ui";
+import { Select, useToast } from "./ui";
 
 /** Shared submit handling: busy state, inline error, toast on success. */
 function useSubmit(onDone: () => void, successMessage: string) {
@@ -43,13 +43,13 @@ export type EntryKind = "CREDIT" | "PAYMENT" | "SALE" | "PURCHASE";
 export type PartyKind = "customer" | "supplier";
 
 const CUSTOMER_KINDS: { value: EntryKind; label: string; tone: string }[] = [
-  { value: "CREDIT", label: "Give credit", tone: "tone-due" },
-  { value: "PAYMENT", label: "Receive payment", tone: "tone-ok" },
+  { value: "CREDIT", label: "You gave", tone: "tone-due" },
+  { value: "PAYMENT", label: "You got", tone: "tone-ok" },
   { value: "SALE", label: "Sale", tone: "tone-due" },
 ];
 const SUPPLIER_KINDS: { value: EntryKind; label: string; tone: string }[] = [
-  { value: "PURCHASE", label: "Purchase", tone: "tone-due" },
-  { value: "PAYMENT", label: "Payment made", tone: "tone-ok" },
+  { value: "PURCHASE", label: "You got (purchase)", tone: "tone-ok" },
+  { value: "PAYMENT", label: "You gave (payment)", tone: "tone-due" },
 ];
 
 export function EntryForm({
@@ -95,8 +95,11 @@ export function EntryForm({
     );
   };
 
+  // Colour the whole form by what is being recorded: red = you gave, green = you got.
+  const side = partyKind === "customer" ? (kind === "PAYMENT" ? "got" : "gave") : kind === "PURCHASE" ? "got" : "gave";
+
   return (
-    <form className="form" onSubmit={submit}>
+    <form className={`form entry-${side}`} onSubmit={submit}>
       {!initialPartyId && (
         <div className="seg" role="group" aria-label="Who is this entry for">
           <button type="button" aria-pressed={partyKind === "customer"} onClick={() => switchParty("customer")}>
@@ -136,17 +139,15 @@ export function EntryForm({
 
       <div className="field">
         <label htmlFor="entry-party">{partyKind === "customer" ? "Customer" : "Supplier"}</label>
-        <select id="entry-party" className="select" value={partyId} onChange={(e) => setPartyId(e.target.value)} required>
-          <option value="" disabled>
-            {parties.loading ? "Loading…" : list.length ? `Choose a ${partyKind}` : `No ${partyKind}s yet`}
-          </option>
-          {list.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-              {p.balance ? `  ·  ${money(Math.abs(p.balance))} ${p.balance > 0 ? "due" : "advance"}` : ""}
-            </option>
-          ))}
-        </select>
+        <Select
+          id="entry-party"
+          value={partyId}
+          onChange={setPartyId}
+          placeholder={parties.loading ? "Loading…" : list.length ? `Choose a ${partyKind}` : `No ${partyKind}s yet`}
+          disabled={!list.length}
+          emptyText={`No ${partyKind}s found`}
+          options={list.map((p) => ({ value: p.id, label: p.name, hint: p.balance ? `${money(Math.abs(p.balance))} ${p.balance > 0 ? (partyKind === "customer" ? "you will get" : "you will give") : "advance"}` : undefined }))}
+        />
         {!parties.loading && !list.length && <span className="hint">Add a {partyKind} first, then record entries for them.</span>}
       </div>
 
@@ -283,11 +284,7 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
         </div>
         <div className="field">
           <label htmlFor="pr-unit">Unit</label>
-          <select id="pr-unit" className="select" value={f.unit} onChange={set("unit")}>
-            {["pcs", "kg", "g", "litre", "metre", "box", "dozen"].map((u) => (
-              <option key={u}>{u}</option>
-            ))}
-          </select>
+          <Select id="pr-unit" value={f.unit} onChange={(v) => setF({ ...f, unit: v })} options={["pcs", "kg", "g", "litre", "metre", "box", "dozen"].map((u) => ({ value: u, label: u }))} />
         </div>
       </div>
       <div className="field">
@@ -386,12 +383,17 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
         </div>
         <div className="field">
           <label htmlFor="ex-method">Paid by</label>
-          <select id="ex-method" className="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            <option value="CASH">Cash</option>
-            <option value="UPI">UPI</option>
-            <option value="BANK_TRANSFER">Bank transfer</option>
-            <option value="CARD">Card</option>
-          </select>
+          <Select
+            id="ex-method"
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+            options={[
+              { value: "CASH", label: "Cash" },
+              { value: "UPI", label: "UPI" },
+              { value: "BANK_TRANSFER", label: "Bank transfer" },
+              { value: "CARD", label: "Card" },
+            ]}
+          />
         </div>
       </div>
       <div className="field">
@@ -448,16 +450,14 @@ export function InvoiceForm({ onDone }: { onDone: () => void }) {
       <div className="form-row">
         <div className="field">
           <label htmlFor="iv-cust">Customer</label>
-          <select id="iv-cust" className="select" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
-            <option value="" disabled>
-              {customers.loading ? "Loading…" : customers.data?.length ? "Choose a customer" : "No customers yet"}
-            </option>
-            {customers.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            id="iv-cust"
+            value={customerId}
+            onChange={setCustomerId}
+            placeholder={customers.loading ? "Loading…" : customers.data?.length ? "Choose a customer" : "No customers yet"}
+            disabled={!customers.data?.length}
+            options={(customers.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          />
         </div>
         <div className="field">
           <label htmlFor="iv-due">Due date</label>
@@ -482,13 +482,7 @@ export function InvoiceForm({ onDone }: { onDone: () => void }) {
             </div>
             <div className="field">
               <label htmlFor={`iv-t-${i}`}>GST %</label>
-              <select id={`iv-t-${i}`} className="select" value={l.taxRate} onChange={(e) => update(i, "taxRate", e.target.value)}>
-                {["0", "5", "12", "18", "28"].map((r) => (
-                  <option key={r} value={r}>
-                    {r}%
-                  </option>
-                ))}
-              </select>
+              <Select id={`iv-t-${i}`} value={l.taxRate} onChange={(v) => update(i, "taxRate", v)} options={["0", "5", "12", "18", "28"].map((r) => ({ value: r, label: `${r}%` }))} />
             </div>
             {lines.length > 1 && (
               <div style={{ display: "flex", alignItems: "end" }}>

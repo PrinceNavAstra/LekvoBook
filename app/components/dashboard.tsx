@@ -55,34 +55,36 @@ export function DashboardView({
 
   return (
     <>
-      <section className="card hero" aria-labelledby="hero-title">
-        <div>
-          <p className="hero-hello">
-            {greeting()} · {longDate(new Date())}
-          </p>
-          <h2 id="hero-title" className="hero-title">
-            {data.business.name}
-          </h2>
-          <div className="hero-actions" style={{ marginTop: 16 }}>
-            <button className="btn btn-due" onClick={() => onEntry("CREDIT", "customer")}>
-              <ArrowUpRight size={18} /> Give credit
-            </button>
-            <button className="btn btn-primary" onClick={() => onEntry("PAYMENT", "customer")}>
-              <ArrowDownLeft size={18} /> Receive payment
-            </button>
-          </div>
+      <section className="summary" aria-labelledby="hero-title">
+        <p className="summary-hello">
+          {greeting()} · {longDate(new Date())}
+        </p>
+        <h2 id="hero-title" className="summary-title">
+          {data.business.name}
+        </h2>
+        <div className="summary-cards">
+          <button className="summary-card is-give" onClick={() => go("Suppliers")}>
+            <span className="summary-label">
+              <ArrowUpRight size={15} /> You will give
+            </span>
+            <span className="summary-value num">{money(data.payable)}</span>
+            <span className="summary-note">to {data.counts.suppliers} supplier{data.counts.suppliers === 1 ? "" : "s"}</span>
+          </button>
+          <button className="summary-card is-get" onClick={() => go("Customers")}>
+            <span className="summary-label">
+              <ArrowDownLeft size={15} /> You will get
+            </span>
+            <span className="summary-value num">{money(data.receivable)}</span>
+            <span className="summary-note">from {data.counts.customers} customer{data.counts.customers === 1 ? "" : "s"}</span>
+          </button>
         </div>
-        <div className="hero-figures">
-          <div className="figure figure-in">
-            <div className="figure-label">You will get</div>
-            <div className="figure-value num">{money(data.receivable)}</div>
-            <div className="figure-note">from customers</div>
-          </div>
-          <div className="figure figure-out">
-            <div className="figure-label">You will give</div>
-            <div className="figure-value num">{money(data.payable)}</div>
-            <div className="figure-note">to suppliers</div>
-          </div>
+        <div className="summary-actions">
+          <button className="btn-gave" onClick={() => onEntry("CREDIT", "customer")}>
+            <ArrowUpRight size={18} /> You gave
+          </button>
+          <button className="btn-got" onClick={() => onEntry("PAYMENT", "customer")}>
+            <ArrowDownLeft size={18} /> You got
+          </button>
         </div>
       </section>
 
@@ -192,7 +194,7 @@ export function DashboardView({
                       <div className="row-title">{c.name}</div>
                       <div className="row-sub">{c.mobile ?? "No mobile number"}</div>
                     </div>
-                    <div className="row-end amount num tone-due">{money(c.balance)}</div>
+                    <div className="row-end amount num tone-get">{money(c.balance)}</div>
                   </button>
                 ))}
               </div>
@@ -207,9 +209,6 @@ export function DashboardView({
                 <h3>Low stock</h3>
                 <p>Running out soon</p>
               </div>
-              <button className="btn-link" onClick={() => go("Inventory")}>
-                Inventory
-              </button>
             </div>
             {data.lowStock.length ? (
               <div className="list">

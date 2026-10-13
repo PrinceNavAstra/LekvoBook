@@ -5,7 +5,7 @@ import { api, useApi } from "@/lib/api";
 import { money, moneyCompact, shortDate } from "@/lib/format";
 import type { Expense, Invoice, Product, Report } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "./forms";
-import { Empty, ErrorState, ListSkeleton, StatusBadge, useToast } from "./ui";
+import { Empty, ErrorState, ListSkeleton, Select, StatusBadge, useToast } from "./ui";
 
 const withVersion = (url: string, version: number) => `${url}?v=${version}`;
 
@@ -394,7 +394,7 @@ export function ReportsView({ version }: { version: number }) {
                     <div className="row-main">
                       <div className="row-title">{r.name}</div>
                     </div>
-                    <span className="amount num tone-ok">{money(r.balance)}</span>
+                    <span className="amount num tone-get">{money(r.balance)}</span>
                   </div>
                 ))}
               </div>
@@ -416,7 +416,7 @@ export function ReportsView({ version }: { version: number }) {
                     <div className="row-main">
                       <div className="row-title">{r.name}</div>
                     </div>
-                    <span className="amount num tone-due">{money(r.balance)}</span>
+                    <span className="amount num tone-give">{money(r.balance)}</span>
                   </div>
                 ))}
               </div>
@@ -545,19 +545,11 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
               <div className="form-row">
                 <div className="field">
                   <label htmlFor="g-cur">Currency</label>
-                  <select id="g-cur" className="select" value={settings.general?.currency ?? "INR"} onChange={(e) => update("general", "currency", e.target.value)}>
-                    {["INR", "USD", "EUR"].map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                  <Select id="g-cur" value={settings.general?.currency ?? "INR"} onChange={(v) => update("general", "currency", v)} options={["INR", "USD", "EUR"].map((c) => ({ value: c, label: c }))} />
                 </div>
                 <div className="field">
                   <label htmlFor="g-date">Date format</label>
-                  <select id="g-date" className="select" value={settings.general?.dateFormat ?? "DD MMM YYYY"} onChange={(e) => update("general", "dateFormat", e.target.value)}>
-                    {["DD MMM YYYY", "DD/MM/YYYY", "MM/DD/YYYY"].map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                  <Select id="g-date" value={settings.general?.dateFormat ?? "DD MMM YYYY"} onChange={(v) => update("general", "dateFormat", v)} options={["DD MMM YYYY", "DD/MM/YYYY", "MM/DD/YYYY"].map((c) => ({ value: c, label: c }))} />
                 </div>
               </div>
               <div className="field">
@@ -616,21 +608,12 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                     <div className="form-row">
                       <div className="field">
                         <label htmlFor={`${c.key}-p`}>Provider</label>
-                        <select
+                        <Select
                           id={`${c.key}-p`}
-                          className="select"
                           value={v.provider ?? DEFAULT_PROVIDER_BY_CHANNEL[c.key as keyof typeof DEFAULT_PROVIDER_BY_CHANNEL]}
-                          onChange={(e) => update(c.key, "provider", e.target.value)}
-                        >
-                          {c.key === "notification.email" ? (
-                            <>
-                              <option value="resend">Resend API</option>
-                              <option value="smtp">SMTP</option>
-                            </>
-                          ) : (
-                            <option value="meta">Meta WhatsApp Cloud API</option>
-                          )}
-                        </select>
+                          onChange={(val) => update(c.key, "provider", val)}
+                          options={c.key === "notification.email" ? [{ value: "resend", label: "Resend API" }, { value: "smtp", label: "SMTP" }] : [{ value: "meta", label: "Meta WhatsApp Cloud API" }]}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`${c.key}-s`}>{c.sender}</label>
@@ -665,7 +648,7 @@ export function SettingsView({ businessName, dark, onToggleTheme }: { businessNa
                       <>
                         <div className="field"><label htmlFor="company-waba">WhatsApp Business Account ID (WABA ID)</label><input id="company-waba" className="input" value={v.wabaId ?? ""} onChange={(e) => update(c.key, "wabaId", e.target.value)} /></div>
                         <div className="field"><label htmlFor="company-wa-token">Permanent access token</label><input id="company-wa-token" className="input" type="password" value={v.token ?? ""} onChange={(e) => update(c.key, "token", e.target.value)} /></div>
-                        <div className="field"><label htmlFor="company-wa-version">Graph API version</label><select id="company-wa-version" className="select" value={v.version ?? "v26.0"} onChange={(e) => update(c.key, "version", e.target.value)}><option value="v26.0">v26.0</option><option value="v23.0">v23.0</option></select></div>
+                        <div className="field"><label htmlFor="company-wa-version">Graph API version</label><Select id="company-wa-version" value={v.version ?? "v26.0"} onChange={(val) => update(c.key, "version", val)} options={[{ value: "v26.0", label: "v26.0" }, { value: "v23.0", label: "v23.0" }]} /></div>
                         <span className="hint">Use a production token with WhatsApp messaging permissions and the Phone Number ID from Meta. Outside the customer-service window, send an approved template only.</span>
                         <div className="form-row">
                           <div className="field"><label htmlFor="company-test-wa">Test recipient (include country code)</label><input id="company-test-wa" className="input" value={testWhatsAppTo} onChange={(e) => setTestWhatsAppTo(e.target.value)} /></div>

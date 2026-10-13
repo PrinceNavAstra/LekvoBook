@@ -1,6 +1,7 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AlertCircle, Check, CheckCircle2, ChevronDown, Search, X } from "lucide-react";
 import { moneyCompact } from "@/lib/format";
 
 /* ── Toasts ───────────────────────────────────────────────── */
@@ -225,5 +226,229 @@ export function BarChart({ data }: { data: { label: string; sales: number; expen
         })}
       </svg>
     </div>
+  );
+}
+
+/* ── Select: a themed dropdown that looks the same on every device ── */
+export type SelectOption = { value: string; label: string; hint?: string; disabled?: boolean };
+
+export function Select({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder = "Select",
+  disabled,
+  ariaLabel,
+  searchable,
+  compact,
+  emptyText = "Nothing to choose from",
+}: {
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+  /** Show a search box. Defaults to on when there are more than 7 options. */
+  searchable?: boolean;
+  compact?: boolean;
+  emptyText?: string;
+}) {
+  const uid = useId();
+  const listId = `${uid}-list`;
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const [box, setBox] = useState<{ left: number; width: number; top?: number; bottom?: number; max: number } | null>(null);
+
+  const showSearch = searchable ?? options.length > 7;
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  }, [options, query]);
+  const selected = options.find((o) => o.value === value);
+
+  const place = useCallback(() => {
+    const el = trigger.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const below = vh - r.bottom - 12;
+    const above = r.top - 12;
+    const up = below < 220 && above > below;
+    const max = Math.max(160, Math.min(320, up ? above : below));
+    const width = Math.max(r.width, 180);
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+    setBox(up ? { left, width, bottom: vh - r.top + 6, max } : { left, width, top: r.bottom + 6, max });
+  }, []);
+
+  const openList = () => {
+    if (disabled) return;
+    setQuery("");
+    const i = options.findIndex((o) => o.value === value);
+    setActive(i >= 0 ? i : Math.max(0, options.findIndex((o) => !o.disabled)));
+    place();
+    setOpen(true);
+  };
+  const close = (refocus = true) => {
+    setOpen(false);
+    if (refocus) trigger.current?.focus({ preventScroll: true });
+  };
+  const choose = (o: SelectOption | undefined) => {
+    if (!o || o.disabled) return;
+    onChange(o.value);
+    close();
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    if (showSearch) popup.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+  }, [open, showSearch]);
+
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (popup.current?.contains(t) || trigger.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onMove = () => place();
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+  }, [open, place]);
+
+  const step = (dir: 1 | -1) => {
+    if (!shown.length) return;
+    let i = active;
+    for (let n = 0; n < shown.length; n++) {
+      i = (i + dir + shown.length) % shown.length;
+      if (!shown[i].disabled) break;
+    }
+    setActive(i);
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openList();
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.nativeEvent.stopPropagation(); // do not also close the dialog behind
+      close();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      step(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      step(-1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setActive(Math.max(0, shown.length - 1));
+    } else if (e.key === "Enter" || (e.key === " " && !showSearch)) {
+      e.preventDefault();
+      choose(shown[active]);
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        ref={trigger}
+        id={id}
+        type="button"
+        className={`dd ${compact ? "dd-compact" : ""}`}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        data-empty={selected ? undefined : "true"}
+        onClick={() => (open ? close(false) : openList())}
+        onKeyDown={onKey}
+      >
+        <span className="dd-value">{selected ? selected.label : placeholder}</span>
+        <ChevronDown size={18} className="dd-chev" aria-hidden="true" />
+      </button>
+      {open &&
+        box &&
+        createPortal(
+          <div
+            ref={popup}
+            className="dd-pop"
+            style={{ left: box.left, width: box.width, top: box.top, bottom: box.bottom, maxHeight: box.max }}
+            onKeyDown={onKey}
+          >
+            {showSearch && (
+              <div className="dd-search">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setActive(0);
+                  }}
+                  placeholder="Search"
+                  aria-label="Search options"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+            <div ref={listRef} id={listId} role="listbox" className="dd-list" aria-label={ariaLabel}>
+              {shown.length ? (
+                shown.map((o, i) => (
+                  <div
+                    key={o.value}
+                    role="option"
+                    aria-selected={o.value === value}
+                    aria-disabled={o.disabled || undefined}
+                    data-active={i === active}
+                    className="dd-opt"
+                    onMouseEnter={() => setActive(i)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => choose(o)}
+                  >
+                    <span className="dd-opt-main">
+                      <span className="dd-opt-label">{o.label}</span>
+                      {o.hint && <span className="dd-opt-hint">{o.hint}</span>}
+                    </span>
+                    {o.value === value && <Check size={17} aria-hidden="true" />}
+                  </div>
+                ))
+              ) : (
+                <div className="dd-none">{emptyText}</div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

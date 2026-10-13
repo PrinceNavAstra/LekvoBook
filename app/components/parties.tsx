@@ -39,8 +39,9 @@ export function PartiesView({
 
   const outstanding = (data ?? []).filter((p) => p.balance > 0).reduce((s, p) => s + p.balance, 0);
   const noun = kind === "customer" ? "customer" : "supplier";
+  // Khatabook colours: red = you will get (they owe you), green = you will give (you owe them).
   const dueLabel = kind === "customer" ? "You will get" : "You will give";
-  const dueTone = kind === "customer" ? "tone-ok" : "tone-due";
+  const dueTone = kind === "customer" ? "tone-get" : "tone-give";
 
   if (error && !data) return <ErrorState message={error} onRetry={reload} />;
 
@@ -51,7 +52,7 @@ export function PartiesView({
           <Search size={18} />
           <input className="input" type="search" placeholder={`Search ${noun}s by name or number`} value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Search ${noun}s`} />
         </div>
-        <button className="btn btn-primary" onClick={onAdd}>
+        <button className="btn btn-primary fab" onClick={onAdd}>
           <Plus size={18} /> Add {noun}
         </button>
       </div>
@@ -70,15 +71,9 @@ export function PartiesView({
 
       <section className="card">
         {data && data.length > 0 && (
-          <div className="card-head" style={{ paddingBottom: 12 }}>
-            <div>
-              <h3 className="num tone-muted" style={{ fontSize: 14, fontFamily: "var(--font-body)", fontWeight: 650 }}>
-                {dueLabel}
-              </h3>
-              <p className={`num ${dueTone}`} style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 26, marginTop: 2 }}>
-                {money(outstanding)}
-              </p>
-            </div>
+          <div className="list-summary">
+            <span>{dueLabel}</span>
+            <b className={`num ${dueTone}`}>{money(outstanding)}</b>
           </div>
         )}
         {loading && !data ? (
@@ -93,8 +88,12 @@ export function PartiesView({
                   <div className="row-sub">{p.mobile ?? "No mobile number"}</div>
                 </div>
                 <div className="row-end">
-                  <div className={`amount num ${p.balance > 0 ? dueTone : "tone-muted"}`}>{p.balance === 0 ? "Settled" : money(Math.abs(p.balance))}</div>
-                  {p.balance !== 0 && <div className="row-sub">{p.balance > 0 ? dueLabel : "Advance paid"}</div>}
+                  <div className={`amount num ${p.balance > 0 ? dueTone : p.balance < 0 ? (kind === "customer" ? "tone-give" : "tone-get") : "tone-muted"}`}>
+                    {p.balance === 0 ? "Settled" : money(Math.abs(p.balance))}
+                  </div>
+                  {p.balance !== 0 && (
+                    <div className="row-sub">{p.balance > 0 ? dueLabel : kind === "customer" ? "Advance" : "Advance paid"}</div>
+                  )}
                 </div>
               </button>
             ))}
@@ -176,39 +175,22 @@ export function PartyProfile({
         </div>
       </div>
 
-      <div className={`profile-balance ${owed ? (customer ? "figure-in" : "figure-out") : ""}`} style={owed ? undefined : { background: "var(--raised)" }}>
-        <div className="figure-label">{party.balance === 0 ? "All settled" : owed ? (customer ? "You will get" : "You will give") : "Advance paid"}</div>
+      <div className={`profile-balance ${party.balance === 0 ? "is-clear" : owed === customer ? "is-get" : "is-give"}`}>
+        <div>
+          <div className="figure-label">{party.balance === 0 ? "All settled" : owed ? (customer ? "You will get" : "You will give") : customer ? "You will give (advance)" : "Advance paid"}</div>
+          {customer && !!party.creditLimit && <div className="figure-note">Credit limit {money(party.creditLimit)}</div>}
+        </div>
         <div className="figure-value num">{money(Math.abs(party.balance))}</div>
-        {customer && !!party.creditLimit && <div className="figure-note">Credit limit {money(party.creditLimit)}</div>}
       </div>
 
-      <div className="profile-actions">
-        {customer ? (
-          <>
-            <button className="btn btn-due" onClick={() => onEntry("CREDIT", party.id)}>
-              <ArrowUpRight size={18} /> Give credit
-            </button>
-            <button className="btn btn-primary" onClick={() => onEntry("PAYMENT", party.id)}>
-              <ArrowDownLeft size={18} /> Receive payment
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="btn btn-due" onClick={() => onEntry("PURCHASE", party.id)}>
-              <ArrowUpRight size={18} /> Add purchase
-            </button>
-            <button className="btn btn-primary" onClick={() => onEntry("PAYMENT", party.id)}>
-              <ArrowDownLeft size={18} /> Payment made
-            </button>
-          </>
-        )}
+      <div className="profile-tools">
         {customer && owed && party.mobile && (
-          <a className="btn btn-soft" href={whatsappLink(party.mobile, reminder)} target="_blank" rel="noopener noreferrer">
-            <MessageCircle size={18} /> Send reminder
+          <a className="btn btn-soft btn-sm" href={whatsappLink(party.mobile, reminder)} target="_blank" rel="noopener noreferrer">
+            <MessageCircle size={16} /> Send reminder
           </a>
         )}
-        <button className="btn" onClick={download} disabled={!data?.length}>
-          <Download size={18} /> Statement
+        <button className="btn btn-sm" onClick={download} disabled={!data?.length}>
+          <Download size={16} /> Statement
         </button>
       </div>
 
@@ -219,9 +201,8 @@ export function PartyProfile({
       ) : data?.length ? (
         <LedgerPaper
           txns={data}
-          raiseLabel={customer ? "You gave" : "You bought"}
-          settleLabel={customer ? "You got" : "You paid"}
-          footer={{ label: party.balance === 0 ? "Balance" : owed ? (customer ? "You will get" : "You will give") : "Advance", value: money(Math.abs(party.balance)), tone: owed ? (customer ? "tone-ok" : "tone-due") : undefined }}
+          opening={party.openingBalance}
+          footer={{ label: party.balance === 0 ? "Balance" : owed ? (customer ? "You will get" : "You will give") : "Advance", value: money(Math.abs(party.balance)), tone: owed ? (customer ? "tone-get" : "tone-give") : undefined }}
         />
       ) : (
         <div className="card">
@@ -229,10 +210,33 @@ export function PartyProfile({
         </div>
       )}
 
-      <p className="row-sub" style={{ marginTop: 14 }}>
+      <p className="row-sub profile-foot">
         Added {longDate(party.createdAt ?? new Date())}
         {party.openingBalance ? ` · Opening balance ${money(party.openingBalance)}` : ""}
       </p>
+
+      {/* Khatabook-style action bar: red for what you gave, green for what you got. */}
+      <div className="entry-bar">
+        {customer ? (
+          <>
+            <button className="btn-gave" onClick={() => onEntry("CREDIT", party.id)}>
+              <ArrowUpRight size={18} /> You gave
+            </button>
+            <button className="btn-got" onClick={() => onEntry("PAYMENT", party.id)}>
+              <ArrowDownLeft size={18} /> You got
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn-gave" onClick={() => onEntry("PAYMENT", party.id)}>
+              <ArrowUpRight size={18} /> You gave
+            </button>
+            <button className="btn-got" onClick={() => onEntry("PURCHASE", party.id)}>
+              <ArrowDownLeft size={18} /> You got
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -266,7 +270,7 @@ export function LedgerView({ version, onAdd }: { version: number; onAdd: () => v
           <Search size={18} />
           <input className="input" type="search" placeholder="Search by name or note" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search entries" />
         </div>
-        <button className="btn btn-primary" onClick={onAdd}>
+        <button className="btn btn-primary fab" onClick={onAdd}>
           <Plus size={18} /> Add entry
         </button>
       </div>
