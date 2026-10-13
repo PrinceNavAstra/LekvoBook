@@ -60,7 +60,7 @@ export default function SuperAdminCommunicationsPage() {
       } else if (kind === "verify") {
         const draft = Object.fromEntries(EMAIL_FIELDS.map(k => [k, config[k]]));
         const data = await request("/api/super-admin/config", "POST", { action: "verify-email", config: draft });
-        setMail({ kind: "ok", text: `{t("authenticate")}d. ${data.message}` });
+        setMail({ kind: "ok", text: `${t("authenticate")}: ${data.message}` });
       } else {
         const data = await request("/api/super-admin/config", "POST", { action: "test-email", to: testEmail });
         setMail({ kind: "ok", text: data.message });
@@ -90,7 +90,7 @@ export default function SuperAdminCommunicationsPage() {
       <div className="form" style={{ padding: 18 }}>
         {check(t("enableEmail"), "emailEnabled")}
         <div className="form-row">
-          <div className="field"><label>Provider</label><Select value={String(config.emailProvider)} onChange={v => set("emailProvider", v)} options={[{ value: "resend", label: t("resend") }, { value: "smtp", label: t("smtp") }]} /></div>
+          <div className="field"><label>{t("provider")}</label><Select value={String(config.emailProvider)} onChange={v => set("emailProvider", v)} options={[{ value: "resend", label: t("resend") }, { value: "smtp", label: t("smtp") }]} /></div>
           {input(t("fromAddress"), "emailFrom", "text", "LekvoBook <no-reply@example.com>")}
         </div>
         {input(t("replyTo"), "emailReplyTo", "email", "support@example.com")}
@@ -100,9 +100,9 @@ export default function SuperAdminCommunicationsPage() {
           <button type="button" className="btn" disabled={!!mailBusy} onClick={() => mailAction("verify")}>{mailBusy === "verify" ? t("authenticating") : t("authenticate")}</button>
           <button type="button" className="btn btn-primary" disabled={!!mailBusy} onClick={() => mailAction("save")}>{mailBusy === "save" ? t("saving") : t("save")}</button>
         </div>
-        <p className="hint">{t("authenticate")} signs in to the mail account with the details above, without sending anything or saving. Press {t("save")} to keep them.</p>
+        <p className="hint">{t("authHelp")}</p>
         <div className="form-row" style={{ alignItems: "end" }}><div className="field"><label>{t("testTo")}</label><input className="input" type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" /></div><button type="button" className="btn" disabled={!!mailBusy || !testEmail} onClick={() => mailAction("test")}>{mailBusy === "test" ? t("sending") : t("sendTest")}</button></div>
-        <p className="hint">The test uses the saved settings, so press {t("save")} first.</p>
+        <p className="hint">{t("testSavedHelp")}</p>
       </div>
     </section>
     <section id="whatsapp-setup" className="card">
