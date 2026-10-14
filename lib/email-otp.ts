@@ -1,14 +1,16 @@
-import { prisma } from "@/lib/prisma";
 import { deliverEmail } from "@/lib/email-delivery";
+import { getPlatformMail } from "@/lib/platform-mail";
 
 type OtpType = "sign-in" | "change-email" | "email-verification" | "forget-password";
 
 export async function sendOtpEmail(input: { email: string; otp: string; type: OtpType }) {
   if (!/^\d{8}$/.test(input.otp)) throw new Error("Unable to deliver the verification code.");
 
-  const setting = await prisma.applicationSetting.findUnique({ where: { key: "platform.communication" } });
-  const config = (setting?.value || {}) as Record<string, unknown>;
-  if (!config.emailEnabled) throw new Error("Platform email delivery is not configured. Contact the Super Admin.");
+  const { config, source } = await getPlatformMail();
+  if (!source) {
+    console.error("[otp-email] no platform mail is set up: save and enable it on /super-admin/communications, or set EMAIL_FROM with RESEND_API_KEY or SMTP_* in Vercel.");
+    throw new Error("Platform email delivery is not configured. Contact the Super Admin.");
+  }
 
   const subject =
     input.type === "sign-in" ? "Your LekvoBook sign-in code" :

@@ -17,6 +17,7 @@ export default function SuperAdminCommunicationsPage() {
   const [config, setConfig] = useState<Config>(defaults);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  const [status, setStatus] = useState<{ source: "admin" | "env" | null; savedAt: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -34,6 +35,7 @@ export default function SuperAdminCommunicationsPage() {
         throw new Error(data.error || (r.status >= 500 ? "The server could not load the settings. Check the database connection and try again." : "Super Admin access required."));
       }
       setConfig({ ...defaults, ...data.config });
+      setStatus(data.mailStatus ?? null);
     }).catch(e => setError(e?.name === "TimeoutError" ? "Loading took too long. Check the database connection and reload." : e.message || "Unable to load configuration."))
       .finally(() => setLoading(false));
   }, []);
@@ -60,7 +62,10 @@ export default function SuperAdminCommunicationsPage() {
       if (kind === "save") {
         const data = await request("/api/super-admin/config", "PUT", config);
         setConfig(old => ({ ...old, ...data.config }));
-        setMail({ kind: "ok", text: config.emailEnabled ? t("emailOn") : t("emailOff") });
+        // Read it back so "Saved" means it is really in the database and sign-in codes can use it.
+        const check = await fetch("/api/super-admin/config", { cache: "no-store" }).then(r => r.json()).catch(() => null);
+        setStatus(check?.mailStatus ?? null);
+        setMail({ kind: "ok", text: check?.mailStatus?.source ? t("emailOn") : t("emailOff") });
       } else if (kind === "verify") {
         const draft = Object.fromEntries(EMAIL_FIELDS.map(k => [k, config[k]]));
         const data = await request("/api/super-admin/config", "POST", { action: "verify-email", config: draft });
@@ -100,6 +105,13 @@ export default function SuperAdminCommunicationsPage() {
         </div>
         {input(t("replyTo"), "emailReplyTo", "email", "support@example.com")}
         {String(config.emailProvider) === "resend" ? input(t("resendKey"), "emailApiKey", "password", MASK) : <><div className="form-row">{input(t("smtpHost"), "emailSmtpHost", "text", "smtp.example.com")}{input(t("smtpPort"), "emailSmtpPort", "number", "587")}</div><div className="form-row">{input(t("smtpUser"), "emailSmtpUser")}{input(t("smtpPassword"), "emailSmtpPassword", "password", MASK)}</div>{check(t("tls"), "emailSmtpSecure")}<p className="hint">{t("smtpHelp")}</p></>}
+        <div className={status?.source ? "alert alert-note" : "alert"} role="status">
+          {status?.source === "admin" && "Sign-in codes are ON: they are sent from the mail account saved here."}
+          {status?.source === "env" && "Sign-in codes are ON: they are sent using the EMAIL_FROM / RESEND_API_KEY / SMTP_* settings in Vercel. Saving and enabling an account here will replace them."}
+          {!status?.source && (status?.savedAt
+            ? "Sign-in codes are OFF: a mail account is saved but “Enable platform email” is not ticked. Tick it and press Save."
+            : "Sign-in codes are OFF: no mail account has been saved yet. Fill in the details, tick “Enable platform email”, press Authenticate, then Save.")}
+        </div>
         {mail && <div className={mail.kind === "ok" ? "alert alert-note" : "alert"} role={mail.kind === "ok" ? "status" : "alert"}>{mail.text}</div>}
         <div className="mail-actions">
           <button type="button" className="btn" disabled={!!mailBusy} onClick={() => mailAction("verify")}>{mailBusy === "verify" ? t("authenticating") : t("authenticate")}</button>

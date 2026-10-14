@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decryptSecret, encryptSecret } from "@/lib/secrets";
 import { deliverEmail, verifyEmailConnection } from "@/lib/email-delivery";
+import { getPlatformMail } from "@/lib/platform-mail";
 
 export const runtime = "nodejs";
 const MASK = "••••••••";
@@ -38,7 +39,12 @@ export async function GET() {
   const user = await admin();
   if (!user) return refusal();
   const row = await prisma.applicationSetting.findUnique({ where: { key: KEY } });
-  return NextResponse.json({ config: safe(row?.value) });
+  const mail = await getPlatformMail();
+  return NextResponse.json({
+    config: safe(row?.value),
+    // Tells the admin page whether sign-in codes can actually be sent right now, and from where.
+    mailStatus: { source: mail.source, savedAt: row?.updatedAt ?? null },
+  });
 }
 export async function PUT(request: Request) {
   const user = await admin();
@@ -123,7 +129,7 @@ export async function POST(request: Request) {
   if (body.action === "test-email") {
     const to = String(body.to || "").trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return NextResponse.json({ error: "Enter a valid test recipient email." }, { status: 400 });
-    if (!config.emailProvider) return NextResponse.json({ error: "Save the email configuration first, then send the test." }, { status: 400 });
+    if (!config.emailProvider) return NextResponse.json({ error: "Nothing is saved yet. Fill in the mail account, press Save, then send the test." }, { status: 400 });
     try {
       await deliverEmail(config, {
         to,
