@@ -17,7 +17,7 @@ export async function GET() {
 
     const [tx, expenses, customers, suppliers] = await Promise.all([
       prisma.ledgerTransaction.findMany({
-        where: { businessId: business.id, transactionDate: { gte: start }, type: { in: ["SALE", "PURCHASE", "PAYMENT"] } },
+        where: { businessId: business.id, status: "posted", transactionDate: { gte: start }, type: { in: ["SALE", "PURCHASE", "PAYMENT"] } },
         select: { type: true, amount: true, transactionDate: true, supplierId: true },
       }),
       prisma.expense.findMany({ where: { businessId: business.id, date: { gte: start } }, select: { amount: true, date: true, category: true } }),
