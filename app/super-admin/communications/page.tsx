@@ -16,6 +16,7 @@ export default function SuperAdminCommunicationsPage() {
   const { t } = useSuperAdminLanguage();
   const [config, setConfig] = useState<Config>(defaults);
   const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -26,11 +27,14 @@ export default function SuperAdminCommunicationsPage() {
   const [mailBusy, setMailBusy] = useState<"" | "save" | "verify" | "test">("");
 
   useEffect(() => {
-    fetch("/api/super-admin/config").then(async r => {
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || "Super Admin access required.");
+    fetch("/api/super-admin/config", { signal: AbortSignal.timeout(15000) }).then(async r => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) setDenied(true);
+        throw new Error(data.error || (r.status >= 500 ? "The server could not load the settings. Check the database connection and try again." : "Super Admin access required."));
+      }
       setConfig({ ...defaults, ...data.config });
-    }).catch(e => setError(e.message || "Unable to load configuration."))
+    }).catch(e => setError(e?.name === "TimeoutError" ? "Loading took too long. Check the database connection and reload." : e.message || "Unable to load configuration."))
       .finally(() => setLoading(false));
   }, []);
   function set(key: string, value: string | boolean) { setConfig(old => ({ ...old, [key]: value })); }
@@ -81,6 +85,7 @@ export default function SuperAdminCommunicationsPage() {
   const input = (label: string, key: string, type = "text", placeholder = "") => <label className="field"><span>{label}</span><input className="input" type={type} value={String(config[key] ?? "")} placeholder={placeholder} autoComplete={type === "password" ? "new-password" : "off"} onChange={e => set(key, e.target.value)} /></label>;
   const check = (label: string, key: string) => <label className="check"><input type="checkbox" checked={Boolean(config[key])} onChange={e => set(key, e.target.checked)} /><span>{label}</span></label>;
   if (loading) return <main className="container"><section className="card"><div className="card-head"><h2>{t("communications")}</h2></div><p>{t("loading")}</p></section></main>;
+  if (denied) return <main className="container" style={{ maxWidth: 640, margin: "48px auto", padding: 20 }}><section className="card"><div className="card-head"><div><h2>{t("communications")}</h2></div></div><div style={{ padding: "0 18px 18px", display: "grid", gap: 14 }}><div className="alert" role="alert">{error}</div><div><a className="btn btn-primary" href="/">Go to sign in</a></div></div></section></main>;
   return <main className="container" style={{ maxWidth: 1120, margin: "32px auto", padding: 20 }}>
     <header style={{ marginBottom: 20 }}><h1>{t("communications")}</h1><p>{t("commsIntro")}</p></header>
     {error && <div className="alert" role="alert" style={{ marginBottom: 16 }}>{error}</div>}

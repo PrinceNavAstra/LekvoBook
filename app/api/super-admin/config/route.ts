@@ -15,6 +15,18 @@ async function admin() {
   if (!user || !allowed.includes(String(user.email || "").toLowerCase())) return null;
   return user;
 }
+/** Explains why access was refused so the admin page can say what to fix. */
+async function refusal() {
+  const user = await getCurrentUser().catch(() => null);
+  if (!user) return NextResponse.json({ error: "Please sign in first, then reopen this page.", code: "SIGNED_OUT" }, { status: 401 });
+  const configured = (process.env.SUPER_ADMIN_EMAILS || "").split(",").map((v) => v.trim()).filter(Boolean).length > 0;
+  return NextResponse.json({
+    error: configured
+      ? `${user.email} is not a Super Admin. Add it to the SUPER_ADMIN_EMAILS setting in Vercel and redeploy.`
+      : "SUPER_ADMIN_EMAILS is not set in Vercel. Add your sign-in email to it and redeploy.",
+    code: "NOT_ADMIN",
+  }, { status: 403 });
+}
 function safe(value: any) {
   const result = { ...(value || {}) };
   for (const field of SECRET_FIELDS) {
@@ -24,13 +36,13 @@ function safe(value: any) {
 }
 export async function GET() {
   const user = await admin();
-  if (!user) return NextResponse.json({ error: "Super Admin access required." }, { status: 403 });
+  if (!user) return refusal();
   const row = await prisma.applicationSetting.findUnique({ where: { key: KEY } });
   return NextResponse.json({ config: safe(row?.value) });
 }
 export async function PUT(request: Request) {
   const user = await admin();
-  if (!user) return NextResponse.json({ error: "Super Admin access required." }, { status: 403 });
+  if (!user) return refusal();
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON." }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid config." }, { status: 400 });
@@ -86,7 +98,7 @@ export async function PUT(request: Request) {
 }
 export async function POST(request: Request) {
   const user = await admin();
-  if (!user) return NextResponse.json({ error: "Super Admin access required." }, { status: 403 });
+  if (!user) return refusal();
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON." }, { status: 400 }); }
   const row = await prisma.applicationSetting.findUnique({ where: { key: KEY } });
