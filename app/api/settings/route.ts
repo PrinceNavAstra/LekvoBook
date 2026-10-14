@@ -36,9 +36,10 @@ export async function GET() {
   const access = await owner();
   if (!access) return NextResponse.json({ error: "Owner or admin access required." }, { status: 401 });
 
-  // General preferences remain separate from platform-wide provider credentials.
+  // General preferences are scoped to the active company, never shared globally.
+  const generalKey = `general:${access.membership.businessId}`;
   const [generalRow, providers] = await Promise.all([
-    prisma.applicationSetting.findUnique({ where: { key: "general" } }),
+    prisma.applicationSetting.findUnique({ where: { key: generalKey } }),
     prisma.notificationProvider.findMany({ where: { businessId: access.membership.businessId } }),
   ]);
 
@@ -74,10 +75,11 @@ export async function PUT(request: Request) {
     if (!body.general || typeof body.general !== "object" || Array.isArray(body.general)) {
       return NextResponse.json({ error: "Invalid general settings." }, { status: 400 });
     }
+    const generalKey = `general:${access.membership.businessId}`;
     await prisma.applicationSetting.upsert({
-      where: { key: "general" },
+      where: { key: generalKey },
       update: { value: body.general, updatedById: access.user.id },
-      create: { key: "general", value: body.general, updatedById: access.user.id },
+      create: { key: generalKey, value: body.general, updatedById: access.user.id },
     });
   }
 
