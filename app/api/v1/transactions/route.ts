@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.ledgerTransaction.findMany({
       where: {
         businessId: business.id,
+        status: "posted",
         ...(type && TYPES.includes(type as Type) ? { type: type as Type } : {}),
         ...(customerId ? { customerId } : {}),
         ...(supplierId ? { supplierId } : {}),
