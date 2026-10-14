@@ -21,13 +21,13 @@ export async function GET() {
       customersWithBalance(business.id),
       suppliersWithBalance(business.id),
       prisma.ledgerTransaction.findMany({
-        where: { businessId: business.id },
+        where: { businessId: business.id, status: "posted" },
         include: { customer: { select: { id: true, name: true } }, supplier: { select: { id: true, name: true } } },
         orderBy: { transactionDate: "desc" },
         take: 8,
       }),
       prisma.ledgerTransaction.findMany({
-        where: { businessId: business.id, type: "SALE", transactionDate: { gte: weekStart } },
+        where: { businessId: business.id, status: "posted", type: "SALE", transactionDate: { gte: weekStart } },
         select: { amount: true, transactionDate: true },
       }),
       prisma.expense.aggregate({
