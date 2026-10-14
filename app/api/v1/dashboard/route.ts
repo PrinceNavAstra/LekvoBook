@@ -27,8 +27,8 @@ export async function GET() {
         take: 8,
       }),
       prisma.ledgerTransaction.findMany({
-        where: { businessId: business.id, status: "posted", type: "SALE", transactionDate: { gte: weekStart } },
-        select: { amount: true, transactionDate: true },
+        where: { businessId: business.id, status: "posted", type: { in: ["SALE", "CREDIT"] }, transactionDate: { gte: weekStart } },
+        select: { amount: true, transactionDate: true, type: true, customerId: true },
       }),
       prisma.expense.aggregate({
         where: { businessId: business.id, date: { gte: startOfToday } },
@@ -45,7 +45,7 @@ export async function GET() {
     const payable = suppliers.filter((s) => s.balance > 0).reduce((s, x) => s + x.balance, 0);
 
     const sales = weekTx
-      .filter((t) => t.transactionDate >= startOfToday)
+      .filter((t) => t.transactionDate >= startOfToday && (t.type === "SALE" || (t.type === "CREDIT" && t.customerId !== null)))
       .reduce((s, t) => s + Number(t.amount), 0);
 
     // Seven-day series, oldest first, with zero-filled days so the chart never has gaps.
@@ -56,6 +56,8 @@ export async function GET() {
     });
     const byKey = new Map(series.map((p) => [p.key, p]));
     for (const t of weekTx) {
+      // Customer CREDIT entries represent sales on account; supplier credits are purchases, not sales.
+      if (t.type === "CREDIT" && !t.customerId) continue;
       const p = byKey.get(dayKey(t.transactionDate));
       if (p) p.sales += Number(t.amount);
     }
