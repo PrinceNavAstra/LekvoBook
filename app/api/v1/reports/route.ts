@@ -17,8 +17,8 @@ export async function GET() {
 
     const [tx, expenses, customers, suppliers] = await Promise.all([
       prisma.ledgerTransaction.findMany({
-        where: { businessId: business.id, status: "posted", transactionDate: { gte: start }, type: { in: ["SALE", "PURCHASE", "PAYMENT"] } },
-        select: { type: true, amount: true, transactionDate: true, supplierId: true },
+        where: { businessId: business.id, status: "posted", transactionDate: { gte: start }, type: { in: ["CREDIT", "SALE", "PURCHASE", "PAYMENT"] } },
+        select: { type: true, amount: true, transactionDate: true, customerId: true, supplierId: true },
       }),
       prisma.expense.findMany({ where: { businessId: business.id, date: { gte: start } }, select: { amount: true, date: true, category: true } }),
       customersWithBalance(business.id),
@@ -36,8 +36,8 @@ export async function GET() {
       const m = byKey.get(monthKey(t.transactionDate));
       if (!m) continue;
       const amount = Number(t.amount);
-      if (t.type === "SALE") m.sales += amount;
-      else if (t.type === "PURCHASE") m.purchases += amount;
+      if (t.type === "SALE" || (t.type === "CREDIT" && t.customerId)) m.sales += amount;
+      else if (t.type === "PURCHASE" || (t.type === "CREDIT" && t.supplierId)) m.purchases += amount;
       else if (t.type === "PAYMENT") (t.supplierId ? (m.paid += amount) : (m.received += amount));
     }
 
