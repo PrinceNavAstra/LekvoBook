@@ -71,6 +71,8 @@ export type Expense = {
   notes: string | null;
 };
 
+export type Income = Expense;
+
 export type Report = {
   months: { key: string; label: string; sales: number; purchases: number; expenses: number; received: number; paid: number }[];
   totals: { sales: number; purchases: number; expenses: number; profit: number; cashIn: number; cashOut: number };

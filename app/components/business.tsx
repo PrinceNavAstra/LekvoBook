@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Mail, MessageCircle, Moon, Package, Plus, Receipt, Search, Sun, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Download, FileText, Mail, MessageCircle, Moon, Package, Plus, Receipt, Search, Sun, WalletCards } from "lucide-react";
 import { api, useApi } from "@/lib/api";
 import { money, moneyCompact, shortDate } from "@/lib/format";
-import type { Expense, Invoice, Product, Report } from "@/lib/types";
+import type { Expense, Income, Invoice, Product, Report } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "./forms";
 import { Empty, ErrorState, ListSkeleton, Select, StatusBadge, useToast } from "./ui";
 
@@ -247,6 +247,100 @@ export function ExpensesView({ version, onAdd }: { version: number; onAdd: () =>
                   <Plus size={18} /> Add expense
                 </button>
               ) : undefined
+            }
+          />
+        )}
+      </section>
+    </>
+  );
+}
+
+/* ── Income & Expenses (cashbook) ─────────────────────────── */
+export function CashbookView({ version, onIncome, onExpense }: { version: number; onIncome: () => void; onExpense: () => void }) {
+  const inc = useApi<Income[]>(withVersion("/api/v1/income", version));
+  const exp = useApi<Expense[]>(withVersion("/api/v1/expenses", version));
+  const [show, setShow] = useState<"all" | "income" | "expense">("all");
+
+  const error = inc.error || exp.error;
+  const loading = (inc.loading && !inc.data) || (exp.loading && !exp.data);
+  if (error && !inc.data && !exp.data) return <ErrorState message={error} onRetry={() => { inc.reload(); exp.reload(); }} />;
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const sum = (rows: Expense[] | null | undefined, from?: Date) => (rows ?? []).filter((r) => !from || new Date(r.date) >= from).reduce((t, r) => t + r.amount, 0);
+  const incomeMonth = sum(inc.data, monthStart);
+  const expenseMonth = sum(exp.data, monthStart);
+  const net = incomeMonth - expenseMonth;
+
+  const rows = [
+    ...(show !== "expense" ? (inc.data ?? []).map((r) => ({ ...r, type: "income" as const })) : []),
+    ...(show !== "income" ? (exp.data ?? []).map((r) => ({ ...r, type: "expense" as const })) : []),
+  ].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+
+  return (
+    <>
+      <section className="summary" aria-labelledby="cash-title">
+        <h2 id="cash-title" className="summary-title">Income &amp; Expenses</h2>
+        <div className="summary-cards">
+          <div className="summary-card cash-in">
+            <span className="summary-label"><ArrowDownLeft size={15} /> Income this month</span>
+            <span className="summary-value num">{money(incomeMonth)}</span>
+          </div>
+          <div className="summary-card cash-out">
+            <span className="summary-label"><ArrowUpRight size={15} /> Expenses this month</span>
+            <span className="summary-value num">{money(expenseMonth)}</span>
+          </div>
+        </div>
+        <div className="summary-card cash-net">
+          <span className="summary-label">Net this month</span>
+          <span className={`summary-value num ${net < 0 ? "tone-due" : "tone-ok"}`}>{net < 0 ? `-${money(Math.abs(net))}` : money(net)}</span>
+        </div>
+        <div className="summary-actions">
+          <button className="btn-gave" onClick={onExpense}><ArrowUpRight size={18} /> Expense</button>
+          <button className="btn-got" onClick={onIncome}><ArrowDownLeft size={18} /> Income</button>
+        </div>
+      </section>
+
+      <div className="toolbar">
+        <div className="chips" role="group" aria-label="Show">
+          {([["all", "All"], ["income", "Income"], ["expense", "Expenses"]] as const).map(([v, l]) => (
+            <button key={v} className="chip" aria-pressed={show === v} onClick={() => setShow(v)}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <section className="card">
+        {loading ? (
+          <ListSkeleton rows={5} />
+        ) : rows.length ? (
+          <div className="list">
+            {rows.map((r) => (
+              <div className="row" key={`${r.type}-${r.id}`}>
+                <div className="avatar" style={r.type === "income" ? { background: "var(--ok-soft)", color: "var(--ok)" } : { background: "var(--due-soft)", color: "var(--due)" }}>
+                  {r.type === "income" ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                </div>
+                <div className="row-main">
+                  <div className="row-title">{r.category}</div>
+                  <div className="row-sub">
+                    {shortDate(r.date)} · {METHOD[r.paymentMethod] ?? r.paymentMethod}
+                    {r.notes ? ` · ${r.notes}` : ""}
+                  </div>
+                </div>
+                <div className={`row-end amount num ${r.type === "income" ? "tone-ok" : "tone-due"}`}>{money(r.amount)}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty
+            icon={<WalletCards size={24} />}
+            title="No income or expenses yet"
+            text="Record the money your business earns and spends to see your real profit."
+            action={
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                <button className="btn-gave" onClick={onExpense}><ArrowUpRight size={18} /> Expense</button>
+                <button className="btn-got" onClick={onIncome}><ArrowDownLeft size={18} /> Income</button>
+              </div>
             }
           />
         )}

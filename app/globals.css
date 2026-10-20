@@ -2268,3 +2268,12 @@ button:disabled,
 .sa-login .seg button { padding-inline: 6px; font-size: 13.5px; }
 .sa-login .brand-name { white-space: nowrap; }
 .sa-login .auth-top { flex-wrap: wrap; }
+
+/* ─── Income & Expenses ─── */
+.summary-card.cash-in { border-top-color: var(--ok); }
+.summary-card.cash-in .summary-value { color: var(--ok); }
+.summary-card.cash-out { border-top-color: var(--due); }
+.summary-card.cash-out .summary-value { color: var(--due); }
+.summary-card.cash-net { border-top-color: var(--brand); }
+.entry-got .input-money, .entry-got .money-wrap::before { color: var(--ok); }
+.sheet .entry-got button[type="submit"], .sheet .entry-got .btn-primary { background: var(--ok); border-color: var(--ok); color: #fff; }

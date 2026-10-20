@@ -341,6 +341,7 @@ export function StockForm({ product, onDone }: { product: Product; onDone: () =>
 }
 
 /* ── Expense ──────────────────────────────────────────────── */
+export const INCOME_CATEGORIES = ["Sales", "Services", "Interest", "Rent received", "Commission", "Other"];
 export const EXPENSE_CATEGORIES = ["Rent", "Salary", "Electricity", "Transport", "Marketing", "Purchase", "Office", "Other"];
 
 export function ExpenseForm({ onDone }: { onDone: () => void }) {
@@ -353,7 +354,7 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="form"
+      className="form entry-gave"
       onSubmit={(e) => {
         e.preventDefault();
         run(() => post("/api/v1/expenses", { category, amount: Number(amount), date, paymentMethod, notes }));
@@ -402,6 +403,70 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
       <FormError message={error} />
       <button className="btn btn-primary" disabled={busy || !Number(amount)}>
         {busy ? "Saving…" : "Save expense"}
+      </button>
+    </form>
+  );
+}
+
+export function IncomeForm({ onDone }: { onDone: () => void }) {
+  const [category, setCategory] = useState("Sales");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(todayInput());
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [notes, setNotes] = useState("");
+  const { busy, error, run } = useSubmit(onDone, "Income saved");
+
+  return (
+    <form
+      className="form entry-got"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(() => post("/api/v1/income", { category, amount: Number(amount), date, paymentMethod, notes }));
+      }}
+    >
+      <div className="field">
+        <label htmlFor="in-amount">Amount</label>
+        <div className="money-wrap">
+          <input id="in-amount" className="input input-money num" type="number" inputMode="decimal" min="0" step="any" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        </div>
+      </div>
+      <div className="field">
+        <span className="label">Category</span>
+        <div className="chips" role="group" aria-label="Income category" style={{ flexWrap: "wrap" }}>
+          {INCOME_CATEGORIES.map((c) => (
+            <button key={c} type="button" className="chip" aria-pressed={category === c} onClick={() => setCategory(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="in-date">Date</label>
+          <input id="in-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label htmlFor="in-method">Received by</label>
+          <Select
+            id="in-method"
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+            options={[
+              { value: "CASH", label: "Cash" },
+              { value: "UPI", label: "UPI" },
+              { value: "BANK_TRANSFER", label: "Bank transfer" },
+              { value: "CARD", label: "Card" },
+            ]}
+          />
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="in-notes">Note (optional)</label>
+        <input id="in-notes" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </div>
+      <FormError message={error} />
+      <button className="btn btn-primary" disabled={busy || !Number(amount)}>
+        {busy ? "Saving…" : "Save income"}
       </button>
     </form>
   );

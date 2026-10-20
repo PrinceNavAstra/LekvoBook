@@ -141,6 +141,7 @@ model Business {
   invoices     Invoice[]
   products     Product[]
   expenses     Expense[]
+  incomes      Income[]
 }
 
 model BusinessUser {
@@ -289,6 +290,20 @@ model Expense {
   notes         String?
   createdAt     DateTime      @default(now())
   business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Income {
+  id            String        @id @default(cuid())
+  businessId    String
+  category      String
+  amount        Decimal
+  date          DateTime      @default(now())
+  paymentMethod PaymentMethod @default(CASH)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, date])
 }
 
 model AuditLog {

@@ -13,6 +13,7 @@ import {
   Sun,
   Truck,
   UserCircle2,
+  WalletCards,
   Users,
 } from "lucide-react";
 import { api, SIGNED_OUT_EVENT, useApi } from "@/lib/api";
@@ -20,10 +21,10 @@ import { translations, type Language } from "@/lib/i18n";
 import { LanguageProvider } from "./components/i18n";
 import type { Dashboard, Party, Product } from "@/lib/types";
 import { DashboardView } from "./components/dashboard";
-import { EntryForm, ExpenseForm, InvoiceForm, PartyForm, ProductForm, StockForm } from "./components/forms";
+import { EntryForm, ExpenseForm, IncomeForm, InvoiceForm, PartyForm, ProductForm, StockForm } from "./components/forms";
 import type { EntryKind, PartyKind } from "./components/forms";
 import { LedgerView, PartiesView, PartyProfile } from "./components/parties";
-import { ReportsView, SettingsView } from "./components/business";
+import { CashbookView, ReportsView, SettingsView } from "./components/business";
 import { ListSkeleton, Sheet, ToastProvider } from "./components/ui";
 import { AuthGate, ProfileSheet as AccountSheet, SetupScreen, type SessionBusiness, type SessionUser } from "./components/auth";
 
@@ -32,17 +33,18 @@ const TABS = [
   { name: "Customers", icon: Users },
   { name: "Suppliers", icon: Truck },
   { name: "Ledger", icon: BookOpen },
+  { name: "Cashbook", icon: WalletCards },
   { name: "Reports", icon: BarChart3 },
   { name: "Settings", icon: Settings },
 ] as const;
 // Phone bottom bar, as in Khatabook: Home, Customers, Suppliers, Reports and a More menu.
-const BOTTOM_TABS: TabName[] = ["Dashboard", "Customers", "Suppliers", "Reports"];
+const BOTTOM_TABS: TabName[] = ["Dashboard", "Customers", "Suppliers", "Cashbook"];
 type TabName = (typeof TABS)[number]["name"];
 
 // Only these six core areas are shown in primary navigation.
 // Legacy inventory, invoices, and expenses data/routes are retained for safety,
 // but are no longer promoted as core features in the user interface.
-const MORE_TABS: TabName[] = ["Ledger", "Settings"];
+const MORE_TABS: TabName[] = ["Ledger", "Reports", "Settings"];
 
 type SheetState =
   | { type: "add" }
@@ -54,6 +56,7 @@ type SheetState =
   | { type: "product" }
   | { type: "stock"; product: Product }
   | { type: "expense" }
+  | { type: "income" }
   | { type: "invoice" };
 
 const ENTRY_TITLE = (kind: EntryKind, party: PartyKind) =>
@@ -130,7 +133,7 @@ function Root() {
 
 function App({ session, language, setLanguage, refreshSession, onSignedOut }: { session: Session; language: Language; setLanguage: (l: Language) => void; refreshSession: () => void; onSignedOut: () => void }) {
   const t = translations[language];
-  const label = (name: string) => name === "Dashboard" ? "Home" : name === "Ledger" ? "Transactions" : t[name.toLowerCase()] ?? name;
+  const label = (name: string) => name === "Dashboard" ? "Home" : name === "Ledger" ? "Transactions" : name === "Cashbook" ? "Income & Expenses" : t[name.toLowerCase()] ?? name;
   const [tab, setTab] = useState<TabName>("Dashboard");
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [version, setVersion] = useState(0);
@@ -170,6 +173,7 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
   const addForTab = () => {
     if (tab === "Customers") setSheet({ type: "party", kind: "customer" });
     else if (tab === "Suppliers") setSheet({ type: "party", kind: "supplier" });
+    else if (tab === "Cashbook") setSheet({ type: "expense" });
     else openEntry("CREDIT");
   };
 
@@ -247,6 +251,7 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
           {tab === "Ledger" && <LedgerView version={version} onAdd={() => openEntry("CREDIT")} />}
           {tab === "Customers" && <PartiesView kind="customer" version={version} onAdd={addForTab} onOpen={(p) => setSheet({ type: "profile", kind: "customer", id: p.id })} />}
           {tab === "Suppliers" && <PartiesView kind="supplier" version={version} onAdd={addForTab} onOpen={(p) => setSheet({ type: "profile", kind: "supplier", id: p.id })} />}
+          {tab === "Cashbook" && <CashbookView version={version} onIncome={() => setSheet({ type: "income" })} onExpense={() => setSheet({ type: "expense" })} />}
           {tab === "Reports" && <ReportsView version={version} />}
           {tab === "Settings" && <SettingsView businessName={businessName} dark={dark} onToggleTheme={toggleTheme} />}
         </main>
@@ -288,6 +293,20 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
               </span>
               <b>You got</b>
               <span>Money you received from a customer or supplier</span>
+            </button>
+            <button className="quick" onClick={() => setSheet({ type: "expense" })}>
+              <span className="quick-icon ic-due">
+                <WalletCards size={20} />
+              </span>
+              <b>Expense</b>
+              <span>Money your business spent, such as rent or bills</span>
+            </button>
+            <button className="quick" onClick={() => setSheet({ type: "income" })}>
+              <span className="quick-icon ic-ok">
+                <WalletCards size={20} />
+              </span>
+              <b>Income</b>
+              <span>Money your business earned, such as sales or services</span>
             </button>
           </div>
         </Sheet>
@@ -366,6 +385,12 @@ function App({ session, language, setLanguage, refreshSession, onSignedOut }: { 
       {sheet?.type === "stock" && (
         <Sheet title={sheet.product.name} subtitle="Update stock" onClose={close}>
           <StockForm product={sheet.product} onDone={saved} />
+        </Sheet>
+      )}
+
+      {sheet?.type === "income" && (
+        <Sheet title="New income" onClose={close}>
+          <IncomeForm onDone={saved} />
         </Sheet>
       )}
 
