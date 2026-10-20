@@ -3,43 +3,46 @@
 import Link from "next/link";
 import { useSuperAdminLanguage } from "./language";
 
-const cardStyle = {
-  display: "block",
-  border: "1px solid #dce6e8",
-  borderRadius: 16,
-  background: "#fff",
-  padding: 22,
-  color: "#123941",
-  textDecoration: "none",
-  minHeight: 150,
-} as const;
+const PALETTE = [
+  { name: "Brand / header", hex: "#123941" },
+  { name: "Positive · You got", hex: "#1B8A5A" },
+  { name: "Negative · You gave", hex: "#CD3034" },
+  { name: "Page background", hex: "#FBFBFA" },
+  { name: "Soft panel", hex: "#ECF7FE" },
+  { name: "Line", hex: "#DCE8E9" },
+];
 
 export default function SuperAdminHomePage() {
   const { t } = useSuperAdminLanguage();
   return (
-    <main style={{ maxWidth: 1120, margin: "0 auto", padding: "32px 20px 56px" }}>
-      <p style={{ margin: "0 0 8px", color: "#CD3034", fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", fontSize: 12 }}>{t("platformAdministration")}</p>
-      <h1 style={{ margin: "0 0 10px", color: "#123941", fontSize: "clamp(28px, 4vw, 38px)" }}>{t("dashboard")}</h1>
-      <p style={{ maxWidth: 720, lineHeight: 1.7, color: "#53676b", marginBottom: 28 }}>
-        {t("dashboardIntro")}
-      </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 }}>
-        <Link href="/super-admin/communications#platform-email" style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#587078", marginBottom: 12 }}>{t("authSystemMail")}</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>{t("emailSetup")}</h2>
-          <p style={{ margin: 0, color: "#53676b", lineHeight: 1.65 }}>{t("emailDesc")}</p>
-          <p style={{ margin: "18px 0 0", color: "#123941", fontWeight: 750 }}>{t("openEmail")}</p>
+    <main className="sa-main">
+      <p className="sa-eyebrow">{t("platformAdministration")}</p>
+      <h1 className="sa-title">{t("dashboard")}</h1>
+      <p className="sa-lead">{t("dashboardIntro")}</p>
+      <div className="sa-grid">
+        <Link href="/super-admin/communications#platform-email" className="sa-card">
+          <div className="sa-kicker">{t("authSystemMail")}</div>
+          <h2>{t("emailSetup")}</h2>
+          <p>{t("emailDesc")}</p>
+          <p className="sa-go">{t("openEmail")}</p>
         </Link>
-        <Link href="/super-admin/communications#whatsapp-setup" style={cardStyle}>
-          <div style={{ fontSize: 13, color: "#587078", marginBottom: 12 }}>{t("metaIntegration")}</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>{t("whatsappSetup")}</h2>
-          <p style={{ margin: 0, color: "#53676b", lineHeight: 1.65 }}>{t("whatsappDesc")}</p>
-          <p style={{ margin: "18px 0 0", color: "#123941", fontWeight: 750 }}>{t("openWhatsApp")}</p>
+        <Link href="/super-admin/communications#whatsapp-setup" className="sa-card alt">
+          <div className="sa-kicker">{t("metaIntegration")}</div>
+          <h2>{t("whatsappSetup")}</h2>
+          <p>{t("whatsappDesc")}</p>
+          <p className="sa-go">{t("openWhatsApp")}</p>
         </Link>
       </div>
-      <p style={{ marginTop: 22, color: "#65777b", fontSize: 13, lineHeight: 1.6 }}>
-        {t("security")}
-      </p>
+      <div className="sa-palette" aria-label="Colour palette">
+        {PALETTE.map((c) => (
+          <div className="sa-swatch" key={c.hex}>
+            <i style={{ background: c.hex }} />
+            <b>{c.name}</b>
+            <span>{c.hex}</span>
+          </div>
+        ))}
+      </div>
+      <p className="sa-note">{t("security")}</p>
     </main>
   );
 }

@@ -2229,3 +2229,42 @@ button:disabled,
     flex: 1;
   }
 }
+
+/* ─── Super Admin area ──────────────────────────────────────── */
+.sa-shell { min-height: 100dvh; background: var(--paper); color: var(--ink); }
+.sa-head { background: var(--head); color: var(--on-head); position: sticky; top: 0; z-index: 20; }
+.sa-head-in { max-width: 1180px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.sa-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--on-head); text-decoration: none; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.sa-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sa-nav a { color: var(--on-head); text-decoration: none; font-size: 14px; font-weight: 650; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.10); }
+.sa-nav a:hover { background: rgba(255,255,255,.2); }
+.sa-nav label, .sa-nav label span { color: var(--on-head) !important; }
+.sa-nav select { background: rgba(255,255,255,.12) !important; color: var(--on-head) !important; border: 1px solid rgba(255,255,255,.3) !important; }
+.sa-nav select option { color: #123941; }
+.sa-out { font: inherit; font-size: 14px; font-weight: 650; color: #fff; background: var(--due); border: 0; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.sa-out:hover { filter: brightness(1.08); }
+.sa-main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 56px; }
+.sa-eyebrow { margin: 0 0 8px; color: var(--due); font-weight: 750; letter-spacing: .04em; text-transform: uppercase; font-size: 12px; }
+.sa-title { margin: 0 0 10px; font-size: clamp(28px, 4vw, 38px); color: var(--ink); }
+.sa-lead { max-width: 720px; line-height: 1.7; color: var(--muted); margin: 0 0 28px; }
+.sa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.sa-card { display: block; border: 1px solid var(--line); border-top: 4px solid var(--ok); border-radius: 16px; background: var(--surface); padding: 22px; color: var(--ink); text-decoration: none; min-height: 150px; box-shadow: var(--shadow-card); transition: transform .15s, box-shadow .15s; }
+.sa-card.alt { border-top-color: var(--brand); }
+.sa-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+.sa-kicker { font-size: 12px; font-weight: 700; letter-spacing: .05em; color: var(--muted); margin-bottom: 12px; }
+.sa-card h2 { margin: 0 0 8px; font-size: 22px; }
+.sa-card p { margin: 0; color: var(--muted); line-height: 1.65; }
+.sa-card .sa-go { margin-top: 18px; color: var(--ok); font-weight: 750; }
+.sa-note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.sa-palette { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.sa-swatch { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.sa-swatch i { display: block; height: 56px; }
+.sa-swatch b { display: block; padding: 8px 10px 0; font-size: 13px; }
+.sa-swatch span { display: block; padding: 0 10px 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sa-login { background: linear-gradient(180deg, var(--head) 0 220px, var(--paper) 220px); }
+.sa-login .auth-card { border-top: 4px solid var(--ok); }
+@media (max-width: 640px) { .sa-head-in { padding: 10px 14px; } .sa-main { padding: 22px 14px 44px; } }
+.sa-login .seg { grid-template-columns: repeat(3, 1fr); }
+.sa-login .seg button { padding-inline: 6px; font-size: 13.5px; }
+.sa-login .brand-name { white-space: nowrap; }
+.sa-login .auth-top { flex-wrap: wrap; }
