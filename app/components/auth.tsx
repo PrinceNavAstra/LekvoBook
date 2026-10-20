@@ -5,6 +5,7 @@ import { api, post } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { translations, type Language } from "@/lib/i18n";
 import { Select, Sheet, useToast } from "./ui";
+import { ResetPassword } from "./reset-password";
 
 export type SessionUser = {
   id: string;
@@ -77,6 +78,7 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
 
   const reset = (toSignup: boolean) => {
     setSignup(toSignup);
@@ -141,6 +143,20 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
     } finally {
       setBusy(false);
     }
+  }
+
+  if (forgot) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <div className="auth-top">
+            <Brand />
+            <LanguageSelect value={language} onChange={setLanguage} />
+          </div>
+          <ResetPassword language={language} initialEmail={email} onBack={() => setForgot(false)} onSignedIn={onDone} />
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -243,6 +259,12 @@ export function AuthGate({ language, setLanguage, onDone }: { language: Language
             }}
           >
             Use a different email address
+          </button>
+        )}
+
+        {!sent && (
+          <button type="button" className="btn-link" onClick={() => setForgot(true)}>
+            {({ gu: "પાસવર્ડ ભૂલી ગયા?", hi: "पासवर्ड भूल गए?" } as Record<string, string>)[language] ?? "Forgot password?"}
           </button>
         )}
 

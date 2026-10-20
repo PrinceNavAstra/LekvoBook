@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { ResetPassword } from "../components/reset-password";
 import { SuperAdminLanguageSelect, useSuperAdminLanguage } from "./language";
 
 type Mode = "otp" | "password" | "setup";
+const FORGOT: Record<string, string> = { en: "Forgot password?", gu: "પાસવર્ડ ભૂલી ગયા?", hi: "पासवर्ड भूल गए?" };
 
 const COPY: Record<string, Record<string, string>> = {
   en: {
@@ -57,6 +59,7 @@ export function SuperAdminLogin({ signedInEmail, configured }: { signedInEmail?:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
 
   const done = () => window.location.replace("/super-admin");
   const clean = () => email.trim().toLowerCase();
@@ -114,6 +117,20 @@ export function SuperAdminLogin({ signedInEmail, configured }: { signedInEmail?:
   async function signOut() {
     try { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); } catch {}
     window.location.replace("/super-admin");
+  }
+
+  if (forgot) {
+    return (
+      <main className="auth-page sa-login">
+        <div className="auth-card">
+          <div className="auth-top">
+            <span className="brand" style={{ padding: 0 }}><span className="brand-mark">L</span><span className="brand-name">Lekvo Book</span></span>
+            <SuperAdminLanguageSelect />
+          </div>
+          <ResetPassword language={language} initialEmail={email} onBack={() => setForgot(false)} onSignedIn={done} />
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -198,6 +215,10 @@ export function SuperAdminLogin({ signedInEmail, configured }: { signedInEmail?:
         <button className="btn btn-primary" disabled={busy}>
           {busy ? c("wait") : mode === "otp" ? (sent ? c("verify") : c("sendCode")) : mode === "setup" ? c("create") : c("signIn")}
         </button>
+
+        {mode === "password" && (
+          <button type="button" className="btn-link" onClick={() => setForgot(true)}>{FORGOT[language] ?? FORGOT.en}</button>
+        )}
 
         {mode === "otp" && sent && (
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
