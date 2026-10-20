@@ -30,15 +30,15 @@ import { AuthGate, ProfileSheet as AccountSheet, SetupScreen, type SessionBusine
 
 const TABS = [
   { name: "Dashboard", icon: HomeIcon },
+  { name: "Cashbook", icon: WalletCards },
   { name: "Customers", icon: Users },
   { name: "Suppliers", icon: Truck },
   { name: "Ledger", icon: BookOpen },
-  { name: "Cashbook", icon: WalletCards },
   { name: "Reports", icon: BarChart3 },
   { name: "Settings", icon: Settings },
 ] as const;
 // Phone bottom bar, as in Khatabook: Home, Customers, Suppliers, Reports and a More menu.
-const BOTTOM_TABS: TabName[] = ["Dashboard", "Customers", "Suppliers", "Cashbook"];
+const BOTTOM_TABS: TabName[] = ["Dashboard", "Cashbook", "Customers", "Suppliers"];
 type TabName = (typeof TABS)[number]["name"];
 
 // Only these six core areas are shown in primary navigation.
