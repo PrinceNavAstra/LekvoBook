@@ -1,3 +1,6 @@
+import { appText } from "@/lib/i18n-app";
+import { moreText } from "@/lib/i18n-more";
+
 // Interface strings for the languages the app supports. Add a key to every language when adding one.
 
 export type Language = "en" | "gu" | "hi";
@@ -61,3 +64,23 @@ export const translations: Record<Language, Record<string, string>> = {
     chooseLanguage: "अपनी भाषा चुनें", selectLanguage: "आपकी डिफ़ॉल्ट भाषा अंग्रेज़ी है।"
   }
 };
+
+export const LOCALES: Record<Language, string> = { en: "en-IN", gu: "gu-IN", hi: "hi-IN" };
+
+/**
+ * Looks a string up in the chosen language. Strings are keyed by their English text (or an older short key),
+ * so anything not translated yet simply shows in English. `{name}` placeholders are filled from `vars`.
+ */
+export function translate(language: Language, key: string, vars?: Record<string, string | number>): string {
+  const own = translations[language]?.[key] ?? (language === "en" ? undefined : appText[language]?.[key] ?? moreText[language]?.[key]);
+  let text = own ?? translations.en[key] ?? key;
+  if (vars) for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value));
+  return text;
+}
+
+// The language currently shown, so code outside React (API errors, toasts, date helpers) can translate too.
+let currentLanguage: Language = "en";
+export function setCurrentLanguage(language: Language) {
+  currentLanguage = language;
+}
+export const tr = (key: string, vars?: Record<string, string | number>) => translate(currentLanguage, key, vars);

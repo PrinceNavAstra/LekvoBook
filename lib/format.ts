@@ -5,12 +5,18 @@ const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFra
 export const money = (n: number, exact = false) => (exact || !Number.isInteger(n) ? inrExact : inr).format(n);
 export const moneyCompact = (n: number) => `₹${compact.format(n)}`;
 
+// Dates follow the user's saved language. Amounts stay in Indian grouping with Latin digits.
+let locale = "en-IN";
+export function setFormatLocale(language: "en" | "gu" | "hi") {
+  locale = language === "gu" ? "gu-IN-u-nu-latn" : language === "hi" ? "hi-IN-u-nu-latn" : "en-IN";
+}
+
 export function shortDate(value: string | Date) {
-  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return new Date(value).toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 export function longDate(value: string | Date) {
-  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(value).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** Groups a date into "Today", "Yesterday" or a readable date for ledger headings. */
