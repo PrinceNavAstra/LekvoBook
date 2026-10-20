@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api, SIGNED_OUT_EVENT, useApi } from "@/lib/api";
 import { translations, type Language } from "@/lib/i18n";
+import { LanguageProvider } from "./components/i18n";
 import type { Dashboard, Party, Product } from "@/lib/types";
 import { DashboardView } from "./components/dashboard";
 import { EntryForm, ExpenseForm, InvoiceForm, PartyForm, ProductForm, StockForm } from "./components/forms";
@@ -107,8 +108,9 @@ function Root() {
     return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
   }, [load]);
 
+  const wrap = (node: React.ReactNode) => <LanguageProvider language={language}>{node}</LanguageProvider>;
   if (state === "loading") {
-    return (
+    return wrap(
       <main className="auth-page" aria-busy="true">
         <div className="auth-card" style={{ justifyItems: "center", textAlign: "center" }}>
           <div className="brand-mark">
@@ -119,11 +121,11 @@ function Root() {
       </main>
     );
   }
-  if (state === "login") return <AuthGate language={language} setLanguage={setLanguage} onDone={load} />;
-  if (state === "setup" && session) return <SetupScreen language={language} setLanguage={setLanguage} userName={session.user.name} onDone={load} />;
+  if (state === "login") return wrap(<AuthGate language={language} setLanguage={setLanguage} onDone={load} />);
+  if (state === "setup" && session) return wrap(<SetupScreen language={language} setLanguage={setLanguage} userName={session.user.name} onDone={load} />);
   if (!session) return null;
 
-  return <App session={session} language={language} setLanguage={setLanguage} refreshSession={load} onSignedOut={() => { setSession(null); setState("login"); }} />;
+  return wrap(<App session={session} language={language} setLanguage={setLanguage} refreshSession={load} onSignedOut={() => { setSession(null); setState("login"); }} />);
 }
 
 function App({ session, language, setLanguage, refreshSession, onSignedOut }: { session: Session; language: Language; setLanguage: (l: Language) => void; refreshSession: () => void; onSignedOut: () => void }) {

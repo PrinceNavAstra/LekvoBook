@@ -1,5 +1,6 @@
 import { appText } from "@/lib/i18n-app";
 import { moreText } from "@/lib/i18n-more";
+import { extraText, patterns } from "@/lib/i18n-extra";
 
 // Interface strings for the languages the app supports. Add a key to every language when adding one.
 
@@ -72,7 +73,12 @@ export const LOCALES: Record<Language, string> = { en: "en-IN", gu: "gu-IN", hi:
  * so anything not translated yet simply shows in English. `{name}` placeholders are filled from `vars`.
  */
 export function translate(language: Language, key: string, vars?: Record<string, string | number>): string {
-  const own = translations[language]?.[key] ?? (language === "en" ? undefined : appText[language]?.[key] ?? moreText[language]?.[key]);
+  if (language !== "en" && translations.en[key] === undefined && !appText[language]?.[key] && !moreText[language]?.[key] && !extraText[language]?.[key]) {
+    // Older short keys (for example "dashboard") are also found by their English wording ("Dashboard").
+    const short = englishToKey().get(key);
+    if (short && translations[language]?.[short]) return translations[language][short];
+  }
+  const own = translations[language]?.[key] ?? (language === "en" ? undefined : appText[language]?.[key] ?? moreText[language]?.[key] ?? extraText[language]?.[key]);
   let text = own ?? translations.en[key] ?? key;
   if (vars) for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value));
   return text;
@@ -84,3 +90,24 @@ export function setCurrentLanguage(language: Language) {
   currentLanguage = language;
 }
 export const tr = (key: string, vars?: Record<string, string | number>) => translate(currentLanguage, key, vars);
+
+/** Translates text with a name, number or amount inside it (for example "Bal. ₹1,200" or "Due 5 Nov"). */
+export function translatePattern(language: Language, text: string): string {
+  if (language === "en") return text;
+  const index = language === "gu" ? 1 : 2;
+  let out = text;
+  for (const rule of patterns) {
+    const next = out.replace(rule[0], rule[index] as string);
+    if (next !== out) out = next;
+  }
+  return out;
+}
+
+let reverse: Map<string, string> | null = null;
+function englishToKey() {
+  if (!reverse) {
+    reverse = new Map();
+    for (const [k, v] of Object.entries(translations.en)) if (!reverse.has(v)) reverse.set(v, k);
+  }
+  return reverse;
+}
